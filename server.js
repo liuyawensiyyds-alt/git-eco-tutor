@@ -4,14 +4,14 @@
  *   - 有 DATABASE_URL 环境变量 → PostgreSQL（Render 云端运行）
  *   - 无 DATABASE_URL → 本地 JSON 文件（本地开发调试）
  *
- * 前端文件从 ../dist 目录提供
+ * 前端文件从 ./dist 目录提供（与 server.js 同级的 dist/）
  */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3100;
-const DIST_DIR = path.join(__dirname, '..', 'dist');
+const DIST_DIR = path.join(__dirname, 'dist');
 
 // 教师访问令牌——Render 环境变量优先，否则用默认值；前端 app.js 需同步修改
 const TEACHER_TOKEN = process.env.TEACHER_TOKEN || 'eco-teacher-2026';
