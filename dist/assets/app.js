@@ -325,6 +325,21 @@ const stages = {
                 subStep: 4
             }
         ]
+    },
+    5: {
+        title: '自主研究 · 论文设计',
+        tag: '阶段五',
+        icon: '<path d="M4 4H20V8H4V4ZM6 10H18V22H6V10ZM9 13H15V15H9V13ZM9 17H13V19H9V17Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>',
+        desc: '在完成前四个阶段后，进入自主研究阶段。AI 导师将陪伴你完成选题、文献、实证设计到论文写作的完整流程。',
+        intro: '欢迎进入自主研究阶段。你已经掌握了"研究设计→数据获取→数据清洗→实证推演"的基础能力。现在，AI 导师会陪伴你从选题出发，一路引导你完成一篇完整的实证论文。',
+        type: 'ai_chat',
+        sections: [
+            { id: 'topic',     label: '选题建议',     icon: '💡', starter: '我想研究 [你的选题方向]，请帮我评估这个选题的可行性和研究价值。' },
+            { id: 'literature',label: '文献综述',     icon: '📚', starter: '请帮我梳理 [某主题] 的研究脉络，找出研究空白。' },
+            { id: 'design',    label: '实证设计',     icon: '🔬', starter: '请帮我审视 [我的研究设计] 的模型设定与变量选取。' },
+            { id: 'writing',   label: '写作框架',     icon: '✍️', starter: '请帮我搭建 [我的论文题目] 的写作框架，从摘要到结论。' },
+            { id: 'defense',   label: '答辩准备',     icon: '🎤', starter: '请预测评委可能对我的论文 [某部分] 提出什么问题？' }
+        ]
     }
 };
 
@@ -482,31 +497,39 @@ function renderLanding() {
     // 渲染模块卡片
     const grid = $('modulesGrid');
     grid.innerHTML = '';
-    
-    for (let i = 1; i <= 4; i++) {
+
+    const stageKeys = Object.keys(stages).map(Number).sort((a,b) => a-b);
+    for (const i of stageKeys) {
         const stage = stages[i];
         const prog = state.progress[i];
-        const totalQs = stage.questions.length;
-        const answered = prog.qIdx;
-        const isComplete = prog.completed;
-        
+        const isAI = stage.type === 'ai_chat';
+        const totalQs = isAI ? 0 : (stage.questions?.length || 0);
+        const answered = prog?.qIdx || 0;
+        const isComplete = prog?.completed || (isAI && aiChatHistory.length > 0);
+
         const card = document.createElement('div');
-        card.className = `module-card ${isComplete ? 'completed' : ''}`;
+        card.className = `module-card ${isComplete ? 'completed' : ''} ${isAI ? 'module-card-ai' : ''}`;
         card.onclick = () => navigate(`stage${i}`);
-        
+
         // 进度点
         let dotsHtml = '';
-        for (let j = 0; j < totalQs; j++) {
-            if (j < answered || isComplete) dotsHtml += '<div class="module-dot completed"></div>';
-            else dotsHtml += '<div class="module-dot"></div>';
+        if (isAI) {
+            dotsHtml = '<div class="module-ai-badge">🤖 AI 自由对话</div>';
+        } else {
+            for (let j = 0; j < totalQs; j++) {
+                if (j < answered || isComplete) dotsHtml += '<div class="module-dot completed"></div>';
+                else dotsHtml += '<div class="module-dot"></div>';
+            }
         }
-        
-        const progressText = isComplete 
-            ? '已完成' 
-            : answered > 0 
-                ? `进度 ${answered}/${totalQs}` 
-                : '未开始';
-        
+
+        const progressText = isAI
+            ? 'AI 导师全程陪伴'
+            : isComplete
+                ? '已完成'
+                : answered > 0
+                    ? `进度 ${answered}/${totalQs}`
+                    : '未开始';
+
         card.innerHTML = `
             <div class="module-card-header">
                 <div class="module-icon">
@@ -524,7 +547,7 @@ function renderLanding() {
             </div>
             <div class="module-footer">
                 <button class="btn-primary" style="padding:8px 20px;font-size:14px" onclick="event.stopPropagation();navigate('stage${i}')">
-                    ${isComplete ? '复习此阶段' : (answered > 0 ? '继续学习' : '进入此阶段')}
+                    ${isAI ? '进入论文设计' : (isComplete ? '复习此阶段' : (answered > 0 ? '继续学习' : '进入此阶段'))}
                 </button>
                 <div class="module-link" onclick="event.stopPropagation();copyLink('stage${i}')">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 8L8 4M5 3L7 5M3 5L5 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2" y="2" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
@@ -577,15 +600,26 @@ function resetAllProgress() {
 async function renderStage(stageNum) {
     const stage = stages[stageNum];
     const prog = state.progress[stageNum];
-    
+
+    // 阶段五（论文设计）走专用 AI 渲染
+    if (stage && stage.type === 'ai_chat') {
+        $('stageLinkDisplay').textContent = `${location.origin}${location.pathname}#stage${stageNum}`;
+        resetAIChatForStage(stageNum);
+        renderPaperStage(stageNum);
+        return;
+    }
+
     // 记录访问时间
     if (!prog.startTime) prog.startTime = Date.now();
     prog.lastAccess = Date.now();
     saveState();
-    
+
     // 显示链接
     $('stageLinkDisplay').textContent = `${location.origin}${location.pathname}#stage${stageNum}`;
-    
+
+    // 切换 AI 上下文
+    resetAIChatForStage(stageNum);
+
     const container = $('stageContainer');
     
     // 如果已完成，显示完成总结
@@ -1961,6 +1995,232 @@ if (importZone) {
         if (e.dataTransfer.files.length) handleCSVFiles(e.dataTransfer.files);
     });
 }
+
+// ====== AI 自由对话（通义千问）======
+let aiChatHistory = []; // 当前面板的消息历史 [{role, content}]
+let aiChatLoading = false;
+let currentAISection = null; // 阶段五的子模块 id
+
+function toggleAIChat() {
+    const panel = $('aiChatPanel');
+    if (!panel) return;
+    if (panel.hidden) {
+        // 打开：检测当前阶段
+        const hash = location.hash.replace('#', '');
+        const stageMatch = hash.match(/^stage(\d+)$/);
+        const stageNum = stageMatch ? parseInt(stageMatch[1]) : 1;
+        const stage = stages[stageNum];
+        $('aiStageTag').textContent = stage ? `${stage.tag}·${stage.title}` : '';
+        if (aiChatHistory.length === 0) {
+            // 首次打开，推送欢迎语
+            addAIMsg('system', `你好！我是 AI 导师。当前上下文：<b>${stage ? stage.title : '自由交流'}</b>。你可以就当前阶段或论文写作自由提问。`);
+        }
+        panel.hidden = false;
+        setTimeout(() => $('aiChatInput')?.focus(), 200);
+    } else {
+        panel.hidden = true;
+    }
+}
+
+function addAIMsg(role, content) {
+    const area = $('aiChatMessages');
+    if (!area) return;
+    const wrap = document.createElement('div');
+    wrap.className = `ai-msg ${role}`;
+    wrap.innerHTML = `
+        <div class="ai-msg-avatar">${role === 'tutor' ? 'AI' : (role === 'user' ? '我' : '💡')}</div>
+        <div class="ai-msg-bubble"></div>
+    `;
+    wrap.querySelector('.ai-msg-bubble').innerHTML = role === 'system' ? content : escapeHTML(content).replace(/\n/g, '<br>');
+    area.appendChild(wrap);
+    area.scrollTop = area.scrollHeight;
+    return wrap;
+}
+
+function escapeHTML(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function sendAIMessage(predefinedText) {
+    if (aiChatLoading) return;
+    const input = $('aiChatInput');
+    const sendBtn = $('aiChatSend');
+    const text = (predefinedText || input?.value || '').trim();
+    if (!text) return;
+    if (input) input.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+    aiChatLoading = true;
+
+    addAIMsg('user', text);
+    aiChatHistory.push({ role: 'user', content: text });
+
+    // 加载提示
+    const placeholder = addAIMsg('tutor', '');
+    placeholder.querySelector('.ai-msg-bubble').innerHTML = '<span class="typing-dots-inline"><span></span><span></span><span></span></span>';
+
+    try {
+        const hash = location.hash.replace('#', '');
+        const m = hash.match(/^stage(\d+)$/);
+        const stageNum = m ? parseInt(m[1]) : 1;
+        const r = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: stageNum, messages: aiChatHistory })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            placeholder.querySelector('.ai-msg-bubble').innerHTML = `<span style="color:#c62828">⚠ ${escapeHTML(data.error || ('请求失败 ' + r.status))}</span>`;
+        } else {
+            const reply = data.reply || '（AI 未返回内容）';
+            placeholder.querySelector('.ai-msg-bubble').innerHTML = escapeHTML(reply).replace(/\n/g, '<br>');
+            aiChatHistory.push({ role: 'assistant', content: reply });
+        }
+    } catch (e) {
+        placeholder.querySelector('.ai-msg-bubble').innerHTML = `<span style="color:#c62828">⚠ 网络异常：${escapeHTML(e.message)}</span>`;
+    } finally {
+        aiChatLoading = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (!predefinedText) input?.focus();
+    }
+}
+
+// 阶段五：论文设计模式（专用视图）
+function renderPaperStage(stageNum) {
+    const stage = stages[stageNum];
+    const container = $('stageContainer');
+    const tag = $('aiStageTag');
+    if (tag) tag.textContent = `${stage.tag}·${stage.title}`;
+
+    container.innerHTML = `
+        <div class="stage-header">
+            <div class="stage-tag">${stage.tag}</div>
+            <h2>${stage.title}</h2>
+            <p class="stage-intro">${stage.intro}</p>
+        </div>
+        <div class="paper-sections" id="paperSections">
+            ${stage.sections.map(s => `
+                <button class="paper-section-btn" data-section="${s.id}" onclick="selectPaperSection('${s.id}')">
+                    <div class="paper-section-icon">${s.icon}</div>
+                    <div class="paper-section-label">${s.label}</div>
+                    <div class="paper-section-desc">${getPaperSectionDesc(s.id)}</div>
+                </button>
+            `).join('')}
+        </div>
+        <div class="paper-chat-box" id="paperChatBox">
+            <div class="paper-chat-header">
+                <span style="font-size:20px">💬</span>
+                <span class="paper-chat-header-title" id="paperChatTitle">AI 论文导师</span>
+            </div>
+            <div class="paper-chat-messages" id="paperChatMessages">
+                <div class="ai-msg system">
+                    <div class="ai-msg-avatar">💡</div>
+                    <div class="ai-msg-bubble">欢迎进入自主研究阶段！上方选择一个论文环节（选题/文献/设计/写作/答辩），我将以资深论文导师的身份与你深入讨论。<br><br>如果想泛泛聊聊，直接在下方输入框提问即可。</div>
+                </div>
+            </div>
+            <div class="paper-chat-input-area">
+                <textarea class="paper-chat-input" id="paperChatInput" placeholder="向 AI 论文导师提问（Enter 发送，Shift+Enter 换行）" rows="2"></textarea>
+                <button class="paper-chat-send" id="paperChatSend" onclick="sendPaperMessage()">发送</button>
+            </div>
+        </div>
+    `;
+    currentAISection = null;
+    aiChatHistory = []; // 阶段五独立历史
+}
+
+function getPaperSectionDesc(id) {
+    const map = {
+        topic: '评估选题可行性与研究价值',
+        literature: '梳理文献脉络，找研究空白',
+        design: '审视模型与变量设定',
+        writing: '搭建论文结构框架',
+        defense: '预测评委问题与应对'
+    };
+    return map[id] || '';
+}
+
+function selectPaperSection(id) {
+    const stage = stages[5];
+    const section = stage.sections.find(s => s.id === id);
+    if (!section) return;
+    currentAISection = id;
+    // 切换按钮高亮
+    document.querySelectorAll('.paper-section-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.section === id);
+    });
+    $('paperChatTitle').textContent = `📍 ${section.icon} ${section.label}`;
+    // 自动发送 starter
+    sendPaperMessage(section.starter);
+}
+
+async function sendPaperMessage(predefinedText) {
+    if (aiChatLoading) return;
+    const input = $('paperChatInput');
+    const sendBtn = $('paperChatSend');
+    const text = (predefinedText || input?.value || '').trim();
+    if (!text) return;
+    if (input) input.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+    aiChatLoading = true;
+
+    const area = $('paperChatMessages');
+    const userWrap = document.createElement('div');
+    userWrap.className = 'ai-msg user';
+    userWrap.innerHTML = `<div class="ai-msg-avatar">我</div><div class="ai-msg-bubble"></div>`;
+    userWrap.querySelector('.ai-msg-bubble').innerHTML = escapeHTML(text).replace(/\n/g, '<br>');
+    area.appendChild(userWrap);
+    aiChatHistory.push({ role: 'user', content: text });
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'ai-msg tutor';
+    placeholder.innerHTML = `<div class="ai-msg-avatar">AI</div><div class="ai-msg-bubble"><span class="typing-dots-inline"><span></span><span></span><span></span></span></div>`;
+    area.appendChild(placeholder);
+    area.scrollTop = area.scrollHeight;
+
+    try {
+        const r = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: 5, messages: aiChatHistory })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            placeholder.querySelector('.ai-msg-bubble').innerHTML = `<span style="color:#c62828">⚠ ${escapeHTML(data.error || ('请求失败 ' + r.status))}</span>`;
+        } else {
+            const reply = data.reply || '（AI 未返回内容）';
+            placeholder.querySelector('.ai-msg-bubble').innerHTML = escapeHTML(reply).replace(/\n/g, '<br>');
+            aiChatHistory.push({ role: 'assistant', content: reply });
+        }
+    } catch (e) {
+        placeholder.querySelector('.ai-msg-bubble').innerHTML = `<span style="color:#c62828">⚠ 网络异常：${escapeHTML(e.message)}</span>`;
+    } finally {
+        aiChatLoading = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (!predefinedText) input?.focus();
+        area.scrollTop = area.scrollHeight;
+    }
+}
+
+// 切换阶段的 AI 历史（每阶段独立）
+function resetAIChatForStage(stageNum) {
+    aiChatHistory = [];
+    const tag = $('aiStageTag');
+    const stage = stages[stageNum];
+    if (tag) tag.textContent = stage ? `${stage.tag}·${stage.title}` : '';
+}
+
+// AI 面板输入框快捷键
+$('aiChatInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendAIMessage();
+    }
+});
+$('paperChatInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendPaperMessage();
+    }
+});
 
 // 初始化
 if (!state.globalStart) {
