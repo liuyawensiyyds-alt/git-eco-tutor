@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>计量经济学实证研究引导系统</title>
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 侧边导航 -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#logoGrad)"/>
+                        <path d="M8 22L13 14L18 18L24 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="24" cy="10" r="2.5" fill="white"/>
+                        <defs>
+                            <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
+                                <stop stop-color="#1a4d8f"/>
+                                <stop offset="1" stop-color="#2d7dd2"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span>计量实证引导</span>
+                </div>
+                <button class="menu-toggle" id="menuToggle" aria-label="切换菜单">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+            <div class="stepper" id="stepper">
+                <div class="step-item" data-stage="home">
+                    <div class="step-number"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L6 11L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                    <div class="step-info">
+                        <div class="step-title">模块首页</div>
+                        <div class="step-desc">选择学习阶段</div>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-stage="1">
+                    <div class="step-number">1</div>
+                    <div class="step-info">
+                        <div class="step-title">研究设计</div>
+                        <div class="step-desc">锁定 X 与 Y</div>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-stage="2">
+                    <div class="step-number">2</div>
+                    <div class="step-info">
+                        <div class="step-title">数据获取</div>
+                        <div class="step-desc">检索真实数据</div>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-stage="3">
+                    <div class="step-number">3</div>
+                    <div class="step-info">
+                        <div class="step-title">数据清洗</div>
+                        <div class="step-desc">频度对齐与转换</div>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-stage="4">
+                    <div class="step-number">4</div>
+                    <div class="step-info">
+                        <div class="step-title">实证推演</div>
+                        <div class="step-desc">检验与回归</div>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-stage="report">
+                    <div class="step-number"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 5H9M5 8H7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+                    <div class="step-info">
+                        <div class="step-title">学情报告</div>
+                        <div class="step-desc">填报与导出</div>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-footer">
+                <div class="progress-bar-container">
+                    <div class="progress-label">整体进度</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content" id="mainContent">
+            <!-- ====== 模块首页 ====== -->
+            <section class="page page-landing" id="pageLanding">
+                <div class="hero">
+                    <div class="hero-bg-pattern"></div>
+                    <div class="hero-content">
+                        <div class="hero-badge">计量经济学 · 实证研究引导</div>
+                        <h1 class="hero-title">计量经济学实证研究<br><span>引导系统</span></h1>
+                        <p class="hero-subtitle">从研究设计到实证检验，以启发式问答引导你完成一篇严谨的计量经济学实证论文</p>
+                        <div class="hero-features">
+                            <div class="feature-chip">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>四阶段独立学习</span>
+                            </div>
+                            <div class="feature-chip">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>启发式问答</span>
+                            </div>
+                            <div class="feature-chip">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>进度自动保存</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 恢复进度横幅 -->
+                <div class="resume-banner" id="resumeBanner" hidden>
+                    <div class="resume-banner-content">
+                        <div class="resume-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/></svg>
+                        </div>
+                        <div class="resume-text">
+                            <strong>检测到上次学习进度</strong>
+                            <span id="resumeDetail"></span>
+                        </div>
+                        <div class="resume-actions">
+                            <button class="btn-primary" onclick="resumeProgress()">继续上次</button>
+                            <button class="btn-secondary" onclick="resetAllProgress()">重新开始</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 模块卡片 -->
+                <div class="modules-section">
+                    <div class="modules-header">
+                        <h2>选择学习阶段</h2>
+                        <p>每个阶段可独立学习，也可按顺序完成完整研究之旅。点击阶段卡片直接进入对应模块。</p>
+                    </div>
+                    <div class="modules-grid" id="modulesGrid">
+                        <!-- JS 动态生成 -->
+                    </div>
+                    <div class="modules-extra">
+                        <button class="btn-secondary btn-large" onclick="navigate('journey')">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 9H16M16 9L12 5M16 9L12 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            完整学习之旅（从阶段一开始）
+                        </button>
+                        <button class="btn-secondary btn-large" onclick="navigate('report')">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 7H13M5 10H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            查看学情报告
+                        </button>
+                        <button class="btn-secondary btn-large" onclick="navigate('teacher')">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 4.5C3 3.67 4.34 3 6 3C7.66 3 9 3.67 9 4.5V13.5C9 12.67 7.66 12 6 12C4.34 12 3 12.67 3 13.5V4.5ZM9 4.5C9 3.67 10.34 3 12 3C13.66 3 15 3.67 15 4.5V13.5C15 12.67 13.66 12 12 12C10.34 12 9 12.67 9 13.5V4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            教师管理台
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== 阶段学习页 ====== -->
+            <section class="page page-stage" id="pageStage" hidden>
+                <div class="stage-toolbar">
+                    <button class="btn-back" onclick="navigate('home')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        返回首页
+                    </button>
+                    <div class="stage-link-display" id="stageLinkDisplay"></div>
+                </div>
+
+                <div class="stage-container" id="stageContainer">
+                    <!-- JS 动态注入 -->
+                </div>
+            </section>
+
+            <!-- ====== 学情报告页 ====== -->
+            <section class="page page-report" id="pageReport" hidden>
+                <div class="stage-toolbar">
+                    <button class="btn-back" onclick="navigate('home')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        返回首页
+                    </button>
+                </div>
+
+                <div class="report-container">
+                    <div class="stage-header">
+                        <div class="stage-tag">学情管理</div>
+                        <h2>学情报告</h2>
+                        <p class="stage-intro">填写个人信息后，系统将汇总你的各阶段学习数据，支持导出 CSV 格式学情报告供教师查阅。</p>
+                    </div>
+
+                    <!-- 学生信息表单 -->
+                    <div class="form-card">
+                        <h3 class="form-title">个人信息填报</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>姓名 <span class="required">*</span></label>
+                                <input type="text" id="formName" class="form-input" placeholder="请输入姓名">
+                            </div>
+                            <div class="form-group">
+                                <label>学号 <span class="required">*</span></label>
+                                <input type="text" id="formStudentId" class="form-input" placeholder="请输入学号">
+                            </div>
+                            <div class="form-group">
+                                <label>课程名称</label>
+                                <input type="text" id="formCourse" class="form-input" placeholder="如：计量经济学" value="计量经济学">
+                            </div>
+                            <div class="form-group">
+                                <label>指导教师</label>
+                                <input type="text" id="formTeacher" class="form-input" placeholder="请输入指导教师姓名">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>学习反思</label>
+                            <textarea id="formReflection" class="form-input" rows="3" placeholder="简述你在本系统中的学习体会、遇到的困难与收获..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 学习数据汇总 -->
+                    <div class="stats-card">
+                        <h3 class="form-title">学习数据汇总</h3>
+                        <div class="stats-table-wrapper">
+                            <table class="data-table" id="statsTable">
+                                <thead>
+                                    <tr>
+                                        <th>阶段</th>
+                                        <th>状态</th>
+                                        <th>回答问题</th>
+                                        <th>使用提示</th>
+                                        <th>对话追问</th>
+                                        <th>首次访问</th>
+                                        <th>完成时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="stats-summary" id="statsSummary"></div>
+                    </div>
+
+                    <!-- 提交至后台 -->
+                    <div class="submit-card" id="submitCard">
+                        <h3 class="form-title">提交至教师后台</h3>
+                        <p class="stage-intro" style="margin-bottom:16px">点击下方按钮，将你的学情数据自动上传至教师后台，教师可实时查看你的学习情况。</p>
+                        <div id="submitStatus" class="submit-status"></div>
+                        <button class="btn-primary btn-large" id="btnSubmitBackend" onclick="submitToBackend()">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2L15 6V12L9 16L3 12V6L9 2Z M9 2V8M9 8L15 6M9 8L3 6M9 8V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            提交学情至教师后台
+                        </button>
+                        <div class="submit-hint" id="submitHint" hidden></div>
+                    </div>
+
+                    <div class="report-actions">
+                        <button class="btn-secondary btn-large" onclick="exportCSV()">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2V12M9 12L5 8M9 12L13 8M3 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            下载 CSV 学情报告
+                        </button>
+                        <button class="btn-secondary btn-large" onclick="exportAnswers()">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 3H15V15H3V3Z M3 7H15 M7 3V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            下载答题详情
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== 教师管理台 ====== -->
+            <section class="page page-teacher" id="pageTeacher" hidden>
+                <div class="stage-toolbar">
+                    <button class="btn-back" onclick="navigate('home')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        返回首页
+                    </button>
+                    <div class="live-status" id="liveStatus">
+                        <span class="live-dot" id="liveDot"></span>
+                        <span id="liveStatusText">检测中...</span>
+                    </div>
+                    <button class="btn-back btn-logout" onclick="teacherLogout()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12M6 8H14M6 2H2V14H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        退出登录
+                    </button>
+                </div>
+
+                <div class="teacher-container">
+                    <div class="stage-header">
+                        <div class="stage-tag">教师管理台</div>
+                        <h2>班级学情实时仪表盘</h2>
+                        <p class="stage-intro">学生提交的学情数据自动汇总至此，实时展示班级整体学习情况与每位学生的个人学情。</p>
+                    </div>
+
+                    <!-- ===== 在线实时模式 ===== -->
+                    <div id="liveMode" hidden>
+                        <!-- 概览卡片 -->
+                        <div class="dashboard-cards" id="liveCards"></div>
+
+                        <!-- 各阶段完成率 -->
+                        <div class="dashboard-charts" id="liveCharts"></div>
+
+                        <!-- 搜索栏 + 学生明细表 -->
+                        <div class="stats-card">
+                            <div class="table-header">
+                                <h3 class="form-title">学生学情明细</h3>
+                                <div class="table-tools">
+                                    <input type="text" class="search-input" id="studentSearch" placeholder="搜索姓名/学号..." oninput="filterLiveTable()">
+                                    <button class="btn-refresh" onclick="loadLiveReports()" title="刷新">
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8C2 5.79 3.79 4 6 4H10M14 8C14 10.21 12.21 12 10 12H6M10 2L13 4L10 6M6 14L3 12L6 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="stats-table-wrapper">
+                                <table class="data-table" id="liveTable">
+                                    <thead>
+                                        <tr>
+                                            <th>姓名</th>
+                                            <th>学号</th>
+                                            <th>阶段一</th>
+                                            <th>阶段二</th>
+                                            <th>阶段三</th>
+                                            <th>阶段四</th>
+                                            <th>总帮助</th>
+                                            <th>总追问</th>
+                                            <th>提交时间</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="liveTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 关注名单 -->
+                        <div class="stats-card">
+                            <h3 class="form-title">需关注学生</h3>
+                            <p class="stage-intro" style="margin-bottom:12px">未完成全部阶段或进度滞后的学生</p>
+                            <div id="liveAtRiskList"></div>
+                        </div>
+
+                        <!-- 导出 -->
+                        <div class="report-actions">
+                            <button class="btn-primary btn-large" onclick="exportLiveReport()">
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2V12M9 12L5 8M9 12L13 8M3 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                导出全班汇总报告
+                            </button>
+                            <button class="btn-secondary btn-large" onclick="exportLiveAnswers()">
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 3H15V15H3V3Z M3 7H15 M7 3V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                导出全班答题详情
+                            </button>
+                            <button class="btn-text-danger btn-large" onclick="clearBackendData()">清空后台数据</button>
+                        </div>
+                    </div>
+
+                    <!-- ===== 离线 CSV 导入模式（后备） ===== -->
+                    <div id="offlineMode" hidden>
+                        <div class="offline-banner">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2L18 17H2L10 2Z M10 8V12M10 15V15.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span>后台服务未连接，当前为离线 CSV 导入模式。启动后端服务后可切换至实时在线模式。</span>
+                        </div>
+
+                        <!-- 导入区 -->
+                        <div class="teacher-import-zone" id="importZone">
+                            <input type="file" id="csvFileInput" accept=".csv" multiple style="display:none">
+                            <div class="import-icon">
+                                <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M24 6V30M24 6L14 16M24 6L34 16M8 34V40C8 42.21 9.79 44 12 44H36C38.21 44 40 42.21 40 40V34" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <p class="import-title">拖拽 CSV 文件到此处，或点击选择</p>
+                            <p class="import-hint">支持批量导入多个学生的「学情报告」CSV 文件</p>
+                            <button class="btn-primary" onclick="document.getElementById('csvFileInput').click()">选择 CSV 文件</button>
+                            <div class="import-supported">
+                                <span class="import-tag">支持格式：学情报告_*.csv</span>
+                                <span class="import-tag">支持格式：答题详情_*.csv</span>
+                            </div>
+                        </div>
+
+                        <!-- 已导入列表 -->
+                        <div class="teacher-imported" id="importedList" hidden>
+                            <div class="imported-header">
+                                <h3 class="form-title">已导入 <span id="importedCount">0</span> 份学情数据</h3>
+                                <button class="btn-text-danger" onclick="clearImportedData()">清空全部</button>
+                            </div>
+                            <div class="imported-list" id="importedListBody"></div>
+                        </div>
+
+                        <!-- 班级统计 -->
+                        <div class="teacher-dashboard" id="teacherDashboard" hidden>
+                            <h3 class="form-title">班级学情概览</h3>
+                            <div class="dashboard-cards" id="dashboardCards"></div>
+                            <div class="dashboard-charts" id="dashboardCharts"></div>
+                            <div class="stats-card">
+                                <h3 class="form-title">学生学情明细</h3>
+                                <div class="stats-table-wrapper">
+                                    <table class="data-table" id="teacherStatsTable">
+                                        <thead><tr><th>姓名</th><th>学号</th><th>阶段一</th><th>阶段二</th><th>阶段三</th><th>阶段四</th><th>总帮助</th><th>总追问</th><th>学习反思</th></tr></thead>
+                                        <tbody id="teacherStatsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="stats-card">
+                                <h3 class="form-title">需关注学生</h3>
+                                <p class="stage-intro" style="margin-bottom:12px">未完成阶段或进度滞后的学生</p>
+                                <div id="atRiskList"></div>
+                            </div>
+                            <div class="report-actions">
+                                <button class="btn-primary btn-large" onclick="exportClassReport()">导出全班汇总报告</button>
+                                <button class="btn-secondary btn-large" onclick="exportClassAnswers()">导出全班答题详情</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 学生详情弹窗 ===== -->
+            <div class="modal-overlay" id="studentModal" hidden>
+                <div class="modal-box">
+                    <div class="modal-header">
+                        <h3 id="modalTitle">学生学情详情</h3>
+                        <button class="modal-close" onclick="closeStudentModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="modalBody"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="assets/app.js"></script>
+</body>
+</html>
