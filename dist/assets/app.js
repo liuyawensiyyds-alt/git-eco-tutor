@@ -132,43 +132,106 @@ const stages = {
         title: '数据获取',
         tag: '阶段二',
         icon: '<path d="M4 8H16M4 8L8 4M4 8L8 12M20 6V18M20 18L16 14M20 18L24 14" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
-        desc: '研究设计已锁定，现在需要真实数据支撑。根据你的变量，检索对应的宏观或金融数据。',
-        intro: '研究设计已锁定，现在需要真实数据支撑。根据你的变量，系统将模拟检索对应的宏观或金融数据。',
-        questions: [
-            {
-                text: "研究设计已锁定。现在我们需要获取真实数据。<br><br>首先思考：<span class='highlight'>你的变量需要什么数据频度？</span>月度？季度？年度？为什么？",
-                hint: '数据频度取决于变量的可获得性和研究目标。宏观数据通常为季度或年度；金融数据可能有日度甚至更高频。频度越高，样本量越大，但也面临更多噪声。',
-                concepts: [
-                    { pattern: /(月度|月|季度|季|年度|年)/, found: '你选定了数据频度', missing: '请明确选择数据频度' },
-                    { pattern: /(样本量|精度|可获得|频率|噪声)/, found: '你考虑了频度选择的原因', missing: '请说明为什么选择这个频度' }
-                ],
-                followUps: {
-                    '什么|定义': '数据频度是指数据观测的时间间隔——月度（每月一个观测值）、季度（每季度一个）、年度（每年一个）。',
-                    '为什么|为何': '频度影响样本量（越高频样本越多）、估计精度、以及对短期和长期效应的区分能力。但高频数据噪声也更多。',
-                    '怎么选|如何选|选择': '选择原则：1) 变量的可获得性（GDP 只有季度）；2) 研究目标（短期波动用高频，长期趋势用低频）；3) 样本量需求。',
-                    '区别|区别': '月度数据每月一个观测，季度每三个月一个，年度每年一个。频度越高样本越多，但宏观数据通常最高只有月度。'
+        desc: '研究设计已锁定。导师直接给出权威数据源清单与取数路径，按变量类型对号入座获取真实数据。',
+        intro: '研究设计已锁定。本阶段不再设问——导师直接为你提供权威数据源导航与实操取数路径。请根据你的 X / Y 变量类型，按图索骥：进入对应官网 → 检索指标 → 下载导出 → 核对口径。',
+        type: 'data_guide',
+        questions: [],
+        // 阶段级追问知识库（供"继续深入探讨"使用）
+        followUps: {
+            '国家统计局|国家数据': '国家统计局（stats.gov.cn）是最权威的宏观数据源。操作路径：进入"国家数据"平台（data.stats.gov.cn）→ 按指标/地区/时间筛选 → 导出 Excel。GDP、CPI、PMI、固定资产投资、居民收入等都能在这里免费下载，免注册。',
+            '年鉴|统计年鉴': '省/地市宏观面板首选统计年鉴：国家、各省、各地市三级统计年鉴数据最全。年鉴缺失的指标可依据《政府信息公开条例》向对应统计局提交信息公开申请（说明学生身份、学术用途、数据项与时间范围），政府有回复效率考核，多会电话协助，成功率高。注意三级口径可能不一致。',
+            'Wind|CSMAR|国泰安': '上市公司微观数据用 CSMAR/Wind/中经研究数据库——学校图书馆通常已购买权限，先问图书馆或院系。标准操作三步：①导出目标企业名单（必须带股票代码）→ ②导出全部上市公司财务表 → ③以股票代码为唯一标识用 VLOOKUP/XLOOKUP 匹配筛选。没有权限时可用 AKShare/Tushare 免费替代。',
+            '免费|替代': '免费替代 Wind 的方案：①AKShare（Python 开源，覆盖A股/期货/基金/宏观，完全免费）；②Tushare（基础数据免费，高级需积分）；③东方财富 Choice 免费版；④同花顺 iFinD（高校可能有免费使用权）。',
+            '上市公司|企业数据|年报': '上市公司数据取数地图分三类：微观企业变量→CSMAR/Wind/企业年报（巨潮资讯网 cninfo.com.cn 可批量下载 XBRL 结构化财务数据）；地区宏观变量→统计年鉴/省市公报；政策处理变量→官方政策名单/试点批次文件。',
+            '国际|世界银行|World Bank': '国际比较数据：世界银行 data.worldbank.org（WDI 数据库，支持 API 批量下载）、IMF（IFS/WEO）、OECD（data.oecd.org）、联合国 UN Comtrade（国际贸易明细）。均免费。',
+            '微观|调查|CFPS|CGSS': '微观个体调查数据：CFPS 中国家庭追踪调查、CGSS 中国综合社会调查、CHFS 中国家庭金融调查——去对应官网注册申请（学术用途免费），审核通过后下载。企业工商信息可用企查查/天眼查（基础信息免费）。',
+            '闲鱼|买数据|第三方': '不建议直接购买第三方整理版数据——大量缺失、错漏。若确实使用，必须交叉验证：抽样与官方数据核对、检查连续性与口径。论文中应标注原始数据来源（如国家统计局），而非获取渠道。',
+            '爬虫|python': '爬虫原则：优先用官方 API 和开源工具（如 AKShare），而非自己写爬虫；遵守 robots.txt；请求间隔≥3秒；仅供学术研究。统计局/交易所数据可直接下载，不建议爬取。',
+            'DID|政策|试点': '做 DID 等政策评估时，处理变量优先找官方试点名单（政策文件、批次文件、部委官网公示），不要自己构造处理组。时间范围要覆盖政策冲击前后。',
+            '频度|频率|月度|季度': '宏观数据频度：GDP 只有季度，CPI/PMI/货币量为月度，统计年鉴为年度。频度选择看两点：变量可获得性 + 研究目标（短期波动用高频、长期趋势用低频）。频度不一致的处理留到阶段三"数据清洗"。',
+            '找不到|没有数据': '找不到数据时按顺序尝试：①行业协会报告与统计年鉴；②该行业上市公司年报的行业分析章节；③政府信息公开申请；④用公开代理变量替代（如用百度指数代理关注度）。注意：不要把论文核心变量押在未拿到手的申请数据上，尽早准备替代指标。'
+        },
+        guide: {
+            categories: [
+                {
+                    id: 'macro', label: '宏观经济数据', icon: '🏛️',
+                    tip: 'GDP、CPI、PMI、货币、财政、贸易等国家级指标，官方免费、最权威。',
+                    sources: [
+                        { name: '国家统计局 · 国家数据平台', url: 'https://data.stats.gov.cn', content: 'GDP、CPI、PPI、PMI、固定资产投资、社零总额、工业增加值、居民收入', freq: '月度/季度/年度', how: '按指标·地区·时间筛选 → 导出 Excel（免费免注册）' },
+                        { name: '中国人民银行', url: 'http://www.pbc.gov.cn', content: 'M0/M1/M2、社融规模、LPR/SHIBOR 利率、汇率、外汇储备', freq: '月度（LPR 每月20日）', how: '官网"调查统计"栏目' },
+                        { name: '财政部', url: 'http://www.mof.gov.cn', content: '财政收支、税收收入、国债发行、地方政府债务', freq: '月度/年度', how: '官网"财政数据"栏目' },
+                        { name: '海关总署', url: 'http://www.customs.gov.cn', content: '进出口贸易额、贸易顺差/逆差、按商品/国别分类数据', freq: '月度', how: '官网统计栏目；细粒度 HS 编码数据走海关统计咨询网' },
+                        { name: '商务部', url: 'http://www.mofcom.gov.cn', content: 'FDI 利用外资、对外投资 ODI、消费市场、电商交易额', freq: '月度/季度', how: '官网统计数据栏目' }
+                    ]
                 },
-                validate: ans => ans.length >= 3,
-                error: '请说明你选择的数据频度及理由。',
-                recordKey: 'frequency'
-            },
-            {
-                text: "你计划从<span class='highlight'>什么数据源</span>获取这些变量？<br><br>国家统计局？中国人民银行？Wind 数据库？CEIC？还是上市公司年报？",
-                hint: '权威数据源是实证研究的基石。宏观数据常用国家统计局和央行；金融数据常用 Wind、CSMAR；国际数据可用 World Bank、IMF 等。',
-                concepts: [
-                    { pattern: /(统计局|央行|Wind|CSMAR|CEIC|World Bank|IMF|年报|数据库)/, found: '你指出了具体数据源', missing: '请指出权威数据来源' }
-                ],
-                followUps: {
-                    '什么|定义': '数据源是获取研究数据的渠道。权威来源能保证数据的准确性和可复现性。',
-                    '为什么|为何': '数据质量直接决定估计的可信度。非权威来源可能有缺失、错误或口径不一致的问题。',
-                    '怎么找|如何找': '宏观数据：国家统计局官网、央行；金融数据：Wind、CSMAR、锐思；国际数据：World Bank Open Data、IMF、OECD。',
-                    '哪个好|推荐': '国内宏观首选国家统计局 + 央行；金融首选 Wind。学术研究常用 CSMAR。如果需要国际比较，World Bank 最方便。'
+                {
+                    id: 'finance', label: '金融与资本市场', icon: '📈',
+                    tip: '股价、财务报表、债券、基金数据。学校已购 Wind/CSMAR 权限时优先使用。',
+                    sources: [
+                        { name: 'CSMAR / Wind / 中经研究数据库', url: 'https://www.gtarsc.com', content: '上市公司财务三表、股票行情、治理结构（高校图书馆通常已购买）', freq: '日度及以上', how: '先问图书馆/院系拿权限 → 导出目标企业名单（带股票代码）→ 用 VLOOKUP 匹配财务指标' },
+                        { name: 'AKShare（Python · 免费）', url: 'https://akshare.akfamily.xyz', content: 'A股/期货/基金/宏观数据，Wind 的免费开源替代', freq: '日度/实时', how: 'pip install akshare → 按接口文档调用，返回 DataFrame' },
+                        { name: 'Tushare（Python）', url: 'https://tushare.pro', content: '股票日线、财务数据、宏观数据（基础免费，高级需积分）', freq: '日度', how: '注册取 token → pip install tushare' },
+                        { name: '巨潮资讯网', url: 'http://www.cninfo.com.cn', content: '上市公司年报/季报/公告全文', freq: '按披露', how: '可批量下载 XBRL 结构化财务数据' },
+                        { name: '中国债券信息网 / 外汇交易中心', url: 'https://www.chinabond.com.cn', content: '国债收益率曲线、债券指数 / 人民币汇率中间价、SHIBOR', freq: '日度', how: '官网数据栏目直接下载' }
+                    ]
                 },
-                validate: ans => ans.length >= 3,
-                error: '请指出数据来源。',
-                recordKey: 'source'
-            }
-        ]
+                {
+                    id: 'industry', label: '产业与行业数据', icon: '🏭',
+                    tip: '行业运行、产销、能源、互联网数据，按行业主管部门对口查找。',
+                    sources: [
+                        { name: '工业和信息化部', url: 'https://www.miit.gov.cn', content: '工业经济运行、电信业务、软件产业、新能源汽车产销', freq: '月度', how: '每月发布的工业经济运行情况' },
+                        { name: '农业农村部', url: 'http://www.moa.gov.cn', content: '农产品产量与价格、进出口、畜牧业', freq: '价格每日更新', how: '官网数据频道，批发价格每日发布' },
+                        { name: '国家能源局', url: 'https://www.nea.gov.cn', content: '能源生产消费、电力数据、煤炭/石油/天然气', freq: '月度', how: '月度电力工业统计数据' },
+                        { name: '中国汽车工业协会', url: 'http://www.caam.org.cn', content: '汽车产销、新能源汽车产销与出口', freq: '月度', how: '官网数据发布栏目' },
+                        { name: 'CNNIC 中国互联网络信息中心', url: 'https://www.cnnic.net.cn', content: '网民规模、互联网普及率、数字经济基础数据', freq: '半年报/年报', how: '《中国互联网络发展状况统计报告》免费下载，做数字经济选题必备' }
+                    ]
+                },
+                {
+                    id: 'intl', label: '国际数据', icon: '🌍',
+                    tip: '跨国比较研究的首选，全部免费、支持批量下载。',
+                    sources: [
+                        { name: '世界银行 WDI', url: 'https://data.worldbank.org', content: '全球各国 GDP、人口、贸易等宏观指标', freq: '年度', how: '在线筛选 → 批量下载 / 支持 API' },
+                        { name: 'IMF', url: 'https://www.imf.org', content: '国际金融统计 IFS、世界经济展望 WEO', freq: '月度/年度', how: '官网 Data 栏目' },
+                        { name: 'OECD', url: 'https://data.oecd.org', content: '发达国家经济社会环境指标', freq: '多频度', how: '按主题、国家筛选后导出' },
+                        { name: 'UN Comtrade', url: 'https://comtrade.un.org', content: '国际贸易明细（按 HS 编码/国别）', freq: '年度/月度', how: '官网检索或 API（海关细粒度数据在此获取）' },
+                        { name: 'Google Dataset Search', url: 'https://datasetsearch.research.google.com', content: '跨平台数据集搜索引擎', freq: '—', how: '输入变量关键词检索已有数据集' }
+                    ]
+                },
+                {
+                    id: 'micro', label: '微观调查数据', icon: '👥',
+                    tip: '研究个体/家庭行为时使用，官网申请（学术用途免费），审核需时日，尽早申请。',
+                    sources: [
+                        { name: 'CFPS 中国家庭追踪调查', url: 'https://www.isss.pku.edu.cn/cfps/', content: '家庭收入消费、教育、健康、代际关系（个体面板）', freq: '两年一轮', how: '官网注册 → 学术用途申请 → 审核通过后下载' },
+                        { name: 'CGSS 中国综合社会调查', url: 'http://cgss.ruc.edu.cn', content: '社会态度、就业、价值观（横截面）', freq: '年度', how: '中国调查数据网申请下载' },
+                        { name: 'CHFS 中国家庭金融调查', url: 'https://chfs.swufe.edu.cn', content: '家庭资产负债、信贷、保险', freq: '两年一轮', how: '西南财经大学官网申请' },
+                        { name: '企查查 / 天眼查', url: 'https://www.qcc.com', content: '企业工商信息、股权结构、融资记录、知识产权', freq: '实时', how: '基础信息免费；深度数据需付费，建议用官方 API' },
+                        { name: 'Kaggle / 阿里天池', url: 'https://www.kaggle.com', content: '公开数据集与竞赛数据', freq: '—', how: '注册后直接下载，附社区分析代码' }
+                    ]
+                }
+            ],
+            // 企业层面实证的三类数据取数地图
+            dataMap: [
+                { type: '微观企业变量', channel: 'CSMAR / Wind / 企业年报（巨潮资讯网）', example: 'ROA、营收、研发投入、高管薪酬' },
+                { type: '地区宏观变量', channel: '统计年鉴 / 省市统计公报', example: '地区 GDP、产业结构、人口' },
+                { type: '政策处理变量', channel: '官方政策名单 / 试点批次文件', example: '低碳城市试点、自贸区批次（DID 必用官方名单）' }
+            ],
+            // 渠道优先级
+            priority: [
+                { rank: '①', title: '官方统计平台直接下载', desc: '最优：免费、权威、可复现。统计年鉴数据最全（国家/省/地市三级）。' },
+                { rank: '②', title: '开源 Python 库自动获取', desc: 'AKShare / Tushare，适合批量、高频数据，替代 Wind。' },
+                { rank: '③', title: '学术调查数据官网申请', desc: 'CFPS / CGSS / CHFS 等，审核需 1–2 周，尽早提交。' },
+                { rank: '④', title: '政府信息公开依法申请', desc: '年鉴缺失时向对应部门提交申请，说明学术用途，多会电话协助。' },
+                { rank: '✕', title: '第三方整理版数据（闲鱼等）', desc: '不推荐直接购买：大量缺失错漏；确需使用必须交叉验证，论文标注原始来源。' }
+            ],
+            // 避坑清单
+            pitfalls: [
+                '统计数据会修订（初步核算→初步核实→最终核实），务必引用最新修订版并注明版本日期',
+                '统计口径跨机构/跨层级可能不一致，尽量使用同一机构同一口径，否则在数据说明中写明调整方法',
+                'DID 处理变量必须用官方试点名单，不要自己构造处理组',
+                '行政非公开数据（爬虫爬不到）只能走信息公开申请，预留 2–4 周，并准备公开替代指标',
+                '上市公司数据匹配：股票代码是唯一标识，两张表用 VLOOKUP/XLOOKUP 合并'
+            ]
+        }
     },
     3: {
         title: '数据清洗',
@@ -503,6 +566,7 @@ function renderLanding() {
         const stage = stages[i];
         const prog = state.progress[i];
         const isAI = stage.type === 'ai_chat';
+        const isGuide = stage.type === 'data_guide';
         const totalQs = isAI ? 0 : (stage.questions?.length || 0);
         const answered = prog?.qIdx || 0;
         const isComplete = prog?.completed || (isAI && aiChatHistory.length > 0);
@@ -515,6 +579,8 @@ function renderLanding() {
         let dotsHtml = '';
         if (isAI) {
             dotsHtml = '<div class="module-ai-badge">🤖 AI 自由对话</div>';
+        } else if (isGuide) {
+            dotsHtml = '<div class="module-ai-badge">📍 数据源导航</div>';
         } else {
             for (let j = 0; j < totalQs; j++) {
                 if (j < answered || isComplete) dotsHtml += '<div class="module-dot completed"></div>';
@@ -524,11 +590,13 @@ function renderLanding() {
 
         const progressText = isAI
             ? 'AI 导师全程陪伴'
-            : isComplete
-                ? '已完成'
-                : answered > 0
-                    ? `进度 ${answered}/${totalQs}`
-                    : '未开始';
+            : isGuide
+                ? (isComplete ? '已完成' : '资源导航模式 · 直接获取数据路径')
+                : isComplete
+                    ? '已完成'
+                    : answered > 0
+                        ? `进度 ${answered}/${totalQs}`
+                        : '未开始';
 
         card.innerHTML = `
             <div class="module-card-header">
@@ -609,6 +677,17 @@ async function renderStage(stageNum) {
         return;
     }
 
+    // 阶段二（数据获取）走数据源导航渲染：直接给出取数路径
+    if (stage && stage.type === 'data_guide') {
+        $('stageLinkDisplay').textContent = `${location.origin}${location.pathname}#stage${stageNum}`;
+        if (!prog.startTime) prog.startTime = Date.now();
+        prog.lastAccess = Date.now();
+        saveState();
+        resetAIChatForStage(stageNum);
+        renderDataGuideStage(stageNum);
+        return;
+    }
+
     // 记录访问时间
     if (!prog.startTime) prog.startTime = Date.now();
     prog.lastAccess = Date.now();
@@ -662,6 +741,149 @@ async function renderStage(stageNum) {
     if (!prog.completed && prog.qIdx < stage.questions.length) {
         await askQuestion(stageNum);
     }
+}
+
+// ====== 阶段二：数据源导航渲染（直接给出取数路径，不设问） ======
+function renderDataGuideStage(stageNum) {
+    const stage = stages[stageNum];
+    const prog = state.progress[stageNum];
+    const g = stage.guide;
+    const container = $('stageContainer');
+
+    // 数据源卡片（按分类）
+    const catTabs = g.categories.map((c, i) =>
+        `<div class="dg-tab ${i === 0 ? 'active' : ''}" data-cat="${c.id}" onclick="switchDgTab('${c.id}')"><span class="dg-tab-icon">${c.icon}</span>${c.label}</div>`
+    ).join('');
+
+    const catPanels = g.categories.map((c, i) => `
+        <div class="dg-panel ${i === 0 ? 'active' : ''}" data-panel="${c.id}">
+            <p class="dg-tip">${c.tip}</p>
+            <div class="dg-grid">
+                ${c.sources.map(s => `
+                    <div class="dg-card">
+                        <div class="dg-card-head">
+                            <div class="dg-card-name">${s.name}</div>
+                            <a class="dg-card-link" href="${s.url}" target="_blank" rel="noopener">进入官网 ↗</a>
+                        </div>
+                        <div class="dg-card-body">${s.content}</div>
+                        <div class="dg-card-meta">
+                            <span class="dg-meta-item"><strong>频度：</strong>${s.freq}</span>
+                        </div>
+                        <div class="dg-card-how"><strong>取数路径：</strong>${s.how}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    // 三类数据取数地图
+    const mapRows = g.dataMap.map(m => `
+        <div class="dg-map-row">
+            <div class="dg-map-type">${m.type}</div>
+            <div class="dg-map-channel">${m.channel}</div>
+            <div class="dg-map-eg">${m.example}</div>
+        </div>
+    `).join('');
+
+    // 渠道优先级
+    const prioRows = g.priority.map(p => `
+        <div class="dg-prio ${p.rank === '✕' ? 'bad' : ''}">
+            <div class="dg-prio-rank">${p.rank}</div>
+            <div class="dg-prio-body">
+                <div class="dg-prio-title">${p.title}</div>
+                <div class="dg-prio-desc">${p.desc}</div>
+            </div>
+        </div>
+    `).join('');
+
+    // 避坑清单
+    const pitfalls = g.pitfalls.map((p, i) => `
+        <div class="dg-pitfall"><span class="dg-pitfall-num">${i + 1}</span>${p}</div>
+    `).join('');
+
+    // 阶段一记录的研究变量（帮助学生"对号入座"）
+    const rd = state.researchDesign;
+    const varsLine = (rd.varY || rd.varX)
+        ? `你的研究设计：<strong>${rd.varY || 'Y'}</strong>（Y）← <strong>${rd.varX || 'X'}</strong>（X）${rd.controls ? `，控制变量：${rd.controls}` : ''}。请据此判断你的变量属于哪一类，再点击上方标签查看对应数据源。`
+        : '提示：先完成阶段一的研究设计（明确 Y 与 X），再回到这里按变量类型对号入座查找数据源。';
+
+    container.innerHTML = `
+        <div class="stage-header">
+            <div class="stage-tag">${stage.tag}</div>
+            <h2>${stage.title}</h2>
+            <p class="stage-intro">${stage.intro}</p>
+        </div>
+
+        <div class="dg-banner">
+            <div class="dg-banner-icon">📍</div>
+            <div class="dg-banner-text">${varsLine}</div>
+        </div>
+
+        <div class="dg-section-title"><span class="dg-sec-num">1</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签，点击「进入官网」直达数据平台</span></div>
+        <div class="dg-tabs">${catTabs}</div>
+        <div class="dg-panels">${catPanels}</div>
+
+        <div class="dg-section-title"><span class="dg-sec-num">2</span>取数地图<span class="dg-sec-sub">做企业层面实证时，三类数据分头去取</span></div>
+        <div class="dg-map">
+            <div class="dg-map-head">
+                <div>数据类型</div><div>首选渠道</div><div>典型变量举例</div>
+            </div>
+            ${mapRows}
+        </div>
+
+        <div class="dg-section-title"><span class="dg-sec-num">3</span>渠道优先级<span class="dg-sec-sub">从上往下依次尝试</span></div>
+        <div class="dg-prios">${prioRows}</div>
+
+        <div class="dg-section-title"><span class="dg-sec-num">4</span>避坑清单<span class="dg-sec-sub">取数前必读</span></div>
+        <div class="dg-pitfalls">${pitfalls}</div>
+
+        <div id="dynamicArea"></div>
+        ${prog.completed ? getStageSummary(stageNum) : ''}
+    `;
+
+    // 未完成时显示完成按钮
+    if (!prog.completed) renderGuideCompletePanel(stageNum);
+}
+
+// 数据源分类标签切换
+function switchDgTab(catId) {
+    document.querySelectorAll('.dg-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === catId));
+    document.querySelectorAll('.dg-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === catId));
+}
+
+// 阶段二完成面板（无问答，浏览路径后确认进入下一步）
+function renderGuideCompletePanel(stageNum) {
+    const area = $('dynamicArea');
+    if (!area) return;
+    area.innerHTML = `
+        <div class="dg-complete-panel">
+            <div class="dg-complete-text">
+                <strong>已完成浏览？</strong>确认你已找到自己变量对应的数据源与取数路径，即可进入阶段三。对数据源仍有疑问，可在左侧 AI 导师面板直接提问（如"AKShare 怎么下载 GDP 季度数据"）。
+            </div>
+            <div class="dg-complete-actions">
+                <button class="btn-secondary" onclick="continueExplore(${stageNum})">深入探讨数据源问题</button>
+                <button class="btn-primary" onclick="completeDataGuide(${stageNum})">我已掌握取数路径，进入下一阶段<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9H14M14 9L10 5M14 9L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+        </div>
+    `;
+}
+
+// 完成阶段二（数据源导航模式）
+function completeDataGuide(stageNum) {
+    const prog = state.progress[stageNum];
+    prog.completed = true;
+    prog.completeTime = Date.now();
+    // 兼容旧进度结构：将 qIdx 置满，避免"进行中"状态残留
+    prog.qIdx = Math.max(prog.qIdx, 1);
+    saveState();
+
+    updateStepper();
+
+    // 显示阶段总结（数据预览）
+    const area = $('dynamicArea');
+    if (area) area.innerHTML = getStageSummary(stageNum);
+
+    showToast(`阶段${stageNum}已完成！`, 'success');
 }
 
 async function restoreDialogue(stageNum) {
@@ -930,8 +1152,8 @@ function askFollowUp(stageNum, preset, qIdxOverride) {
         history.appendChild(qItem);
     }
 
-    // 匹配回答：优先当前题，若阶段已完成则合并全部问题的知识库匹配
-    let followUps = q?.followUps || {};
+    // 匹配回答：优先当前题，其次阶段级知识库，若阶段已完成则合并全部问题的知识库匹配
+    let followUps = q?.followUps || stage.followUps || {};
     let answer = null;
     for (const [pattern, response] of Object.entries(followUps)) {
         const regex = new RegExp(pattern, 'i');
@@ -946,6 +1168,12 @@ function askFollowUp(stageNum, preset, qIdxOverride) {
                 if (regex.test(question)) { answer = response; break; }
             }
             if (answer !== null) break;
+        }
+    }
+    if (answer === null && stage.followUps) {
+        for (const [pattern, response] of Object.entries(stage.followUps)) {
+            const regex = new RegExp(pattern, 'i');
+            if (regex.test(question)) { answer = response; break; }
         }
     }
     if (answer === null) {
@@ -996,7 +1224,7 @@ function showStageSummary(stageNum) {
 function continueExplore(stageNum) {
     const stage = stages[stageNum];
 
-    // 收集本阶段全部可追问话题
+    // 收集本阶段全部可追问话题（题目级 + 阶段级知识库）
     const topics = [];
     stage.questions.forEach(q => {
         if (q.followUps) Object.keys(q.followUps).forEach(p => {
@@ -1004,6 +1232,12 @@ function continueExplore(stageNum) {
             if (m) topics.push(m[0]);
         });
     });
+    if (stage.followUps) {
+        Object.keys(stage.followUps).forEach(p => {
+            const m = p.match(/[\u4e00-\u9fa5A-Za-z]+/);
+            if (m) topics.push(m[0]);
+        });
+    }
     const uniqueTopics = [...new Set(topics)].slice(0, 8);
 
     const area = $('dynamicArea');
@@ -1065,7 +1299,7 @@ function getStageSummary(stageNum) {
                     <div class="data-source">${mockData.source}</div>
                 </div>
                 <div class="table-wrapper"><table class="data-table">${tableHtml}</table></div>
-                <p class="data-note">注意：此处仅展示数据前5行作为预览。请勿在此阶段直接解读数据规律或得出分析结论。</p>
+                <p class="data-note">注意：上表为系统提供的示例数据（前5行）。请按照本阶段给出的取数路径，亲手下载你自己变量的真实数据。此处请勿直接解读数据规律或得出分析结论——那将留到阶段四完成。</p>
                 <button class="btn-primary btn-next" onclick="navigate('stage3')">进入阶段三：数据清洗<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9H14M14 9L10 5M14 9L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                 <button class="btn-secondary btn-next" style="margin-left:10px" onclick="continueExplore(2)">继续深入探讨</button>
                 <button class="btn-secondary btn-next" style="margin-left:10px" onclick="navigate('home')">返回首页</button>
@@ -1122,7 +1356,7 @@ function renderReport() {
         html += `<tr>
             <td><strong>阶段${i}</strong> ${stages[i].title}</td>
             <td>${p.completed ? '<span style="color:var(--success);font-weight:600">已完成</span>' : (p.qIdx > 0 ? '进行中' : '未开始')}</td>
-            <td>${p.answers.length}/${stages[i].questions.length}</td>
+            <td>${stages[i].questions.length ? `${p.answers.length}/${stages[i].questions.length}` : '—（资源导航）'}</td>
             <td>${p.hintsUsed}</td>
             <td>${p.helpExchanges.length}</td>
             <td>${fmtTime(p.startTime)}</td>
@@ -1171,7 +1405,7 @@ function exportCSV() {
             stages[i].title,
             p.completed ? '已完成' : (p.qIdx > 0 ? '进行中' : '未开始'),
             p.answers.length,
-            stages[i].questions.length,
+            stages[i].questions.length || '—',
             p.hintsUsed,
             p.helpExchanges.length,
             fmtTime(p.startTime),
