@@ -296,7 +296,7 @@ const stages = {
         tag: '阶段二',
         icon: '<path d="M4 8H16M4 8L8 4M4 8L8 12M20 6V18M20 18L16 14M20 18L24 14" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
         desc: '研究设计已锁定。导师直接给出权威数据源清单与取数路径，按变量类型对号入座获取真实数据。',
-        intro: '研究设计已锁定。本阶段不再设问——导师直接为你提供权威数据源导航与实操取数路径。请根据你的 X / Y 变量类型，按图索骥：进入对应官网 → 检索指标 → 下载导出 → 核对口径。',
+        intro: '请根据你的 X / Y 变量类型，按图索骥：进入对应官网 → 检索指标 → 下载导出 → 核对口径。',
         type: 'data_guide',
         questions: [],
         // 阶段级追问知识库（供"继续深入探讨"使用）
@@ -986,7 +986,7 @@ function renderDataGuideStage(stageNum) {
             <div class="dg-banner-text">${varsLine}</div>
         </div>
 
-        <div class="dg-section-title"><span class="dg-sec-num">1</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签，点击「进入官网」直达数据平台</span></div>
+        <div class="dg-section-title"><span class="dg-sec-num">1</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签</span></div>
         <div class="dg-tabs">${catTabs}</div>
         <div class="dg-panels">${catPanels}</div>
 
