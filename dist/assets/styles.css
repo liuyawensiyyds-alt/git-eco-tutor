@@ -826,3 +826,88 @@ body {
     .dg-map-head, .dg-map-row { grid-template-columns: 1fr; gap: 4px; }
     .dg-grid { grid-template-columns: 1fr; }
 }
+
+/* ====== 分层引导（按学生水平适配） ====== */
+.level-section { margin: 0 0 24px; }
+.lv-card {
+    background: #fff; border: 1.5px solid #dbe7f5; border-radius: 14px;
+    padding: 18px 20px;
+}
+.lv-card-prompt { border-color: #f0c9a0; background: linear-gradient(135deg, #fffdf7 0%, #f7fbff 100%); }
+.lv-card-title { font-size: 16.5px; font-weight: 800; color: #1a2332; margin-bottom: 6px; }
+.lv-card-sub { font-size: 13px; color: #5a6a7e; line-height: 1.65; margin: 0 0 14px; }
+.lv-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.lv-option {
+    text-align: left; background: #fff; border: 1.5px solid #e0e6ee; border-radius: 12px;
+    padding: 14px 16px; cursor: pointer; transition: all .2s;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.lv-option:hover { border-color: #2d7dd2; box-shadow: 0 6px 18px rgba(45,125,210,0.14); transform: translateY(-2px); }
+.lv-option-head { display: flex; align-items: center; gap: 8px; }
+.lv-option-icon { font-size: 20px; }
+.lv-option-name { font-size: 15px; font-weight: 700; color: #1a4d8f; }
+.lv-option-desc { font-size: 12.5px; color: #6b7a8e; line-height: 1.6; }
+
+.lv-card-set { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-color: #cfe4f5; }
+.lv-card-set-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 260px; flex-wrap: wrap; }
+.lv-card-set-desc { font-size: 12.5px; color: #6b7a8e; }
+.lv-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: linear-gradient(135deg, #1a4d8f, #2d7dd2); color: #fff;
+    font-size: 12.5px; font-weight: 700; padding: 5px 12px; border-radius: 100px; white-space: nowrap;
+}
+.lv-switcher { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; margin-top: 4px; }
+.lv-switcher.inline { margin-top: 8px; }
+.lv-switch-btn {
+    padding: 7px 14px; border-radius: 100px; cursor: pointer;
+    background: #fff; border: 1.5px solid #e0e6ee; font-size: 13px; font-weight: 600; color: #5a6a7e; transition: all .2s;
+}
+.lv-switch-btn:hover { border-color: #2d7dd2; color: #2d7dd2; }
+.lv-switch-btn.active { background: linear-gradient(135deg, #1a4d8f, #2d7dd2); color: #fff; border-color: transparent; }
+
+.lv-chip-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: #f5f9ff; border: 1px solid #d9e8f7; border-radius: 100px;
+    padding: 8px 16px; margin-bottom: 20px; font-size: 12.5px;
+}
+.lv-chip-tip { color: #6b7a8e; flex: 1; min-width: 180px; }
+.lv-chip-switch {
+    background: none; border: none; color: #2d7dd2; font-size: 12.5px;
+    cursor: pointer; font-weight: 600; padding: 2px 6px;
+}
+.lv-chip-switch:hover { text-decoration: underline; }
+
+/* 概念讲解卡（初学者模式，聊天气泡内） */
+.concept-card {
+    background: #fbfaff; border: 1px solid #e4dcf5; border-radius: 12px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 9px;
+}
+.concept-card-title { font-size: 13.5px; font-weight: 800; color: #5b3fa8; margin-bottom: 2px; }
+.concept-row { display: flex; gap: 10px; font-size: 13px; color: #4a3d63; line-height: 1.65; }
+.concept-tag {
+    flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: #7a5fc0;
+    background: rgba(122,95,192,0.12); border-radius: 6px; padding: 2px 8px; height: fit-content; margin-top: 1px;
+}
+.concept-points {
+    font-size: 12.5px; color: #8a5a00; background: #fff8e8;
+    border-radius: 8px; padding: 8px 10px; line-height: 1.65;
+}
+
+/* 自动提示 / 参考示例（输入面板内） */
+.scaffold-box { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.scaffold-hint {
+    background: #f0f7ff; border: 1px solid #c7e0f7; border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; color: #2c5f8f; line-height: 1.65;
+}
+.scaffold-example { border: 1px dashed #f0c9a0; border-radius: 10px; background: #fffaf2; }
+.scaffold-example summary {
+    cursor: pointer; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #9a6b1f;
+    user-select: none;
+}
+.scaffold-example[open] summary { border-bottom: 1px dashed #f0d9b8; }
+.scaffold-example-body { padding: 10px 14px; font-size: 13px; color: #6b5b3a; line-height: 1.7; }
+
+@media (max-width: 640px) {
+    .lv-options { grid-template-columns: 1fr; }
+    .lv-chip-bar { border-radius: 12px; }
+}

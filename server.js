@@ -81,6 +81,25 @@ const STAGE_SYSTEM_PROMPTS = {
 中文，对话式。`
 };
 
+// ====== 按学生水平适配的追加指令（解决"初学者被反问卡住""回答笼统"问题） ======
+const LEVEL_SYSTEM_ADDONS = {
+    beginner: `
+
+【重要】当前学生自评为「初学者」：计量概念基础薄弱，容易被反问式引导卡住。你必须调整教学方式：
+- 直接讲解概念和做法，禁止用反问代替讲解（不要"你觉得呢？"式回应）
+- 每次只讲一个知识点，讲透再往下走
+- 多用生活化例子和类比；用到术语时，先用一句话解释术语
+- 给出具体可操作的步骤："第一步…第二步…"
+- 如果学生理解有误，直接指出错在哪里并给出正确理解
+- 回答必须具体（给公式、给数据源名、给代码片段），禁止笼统套话`,
+    intermediate: `
+
+当前学生自评为「进阶」：已学过计量经济学基础。以启发式引导为主，学生卡壳或直接求解时，给出明确方法和答案，不要反复绕弯。`,
+    advanced: `
+
+当前学生自评为「高级」：熟悉计量方法。保持苏格拉底式追问，可以深入讨论识别策略、渐近性质、稳健性检验的技术细节，不必回避技术性内容，也不必停留在基础概念。`
+};
+
 const MIME = {
     '.html': 'text/html; charset=utf-8',
     '.css': 'text/css; charset=utf-8',
@@ -250,7 +269,16 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-    const url = new URL(req.url, `http://localhost:${PORT}`);
+    // 防御畸形 URL（如 "//"）导致服务崩溃
+    let url;
+    try {
+        url = new URL(req.url, `http://localhost:${PORT}`);
+    } catch (e) {
+        console.warn('[http] invalid URL:', JSON.stringify(req.url));
+        res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Bad Request');
+        return;
+    }
     const p = url.pathname;
 
     // ===== API 路由 =====
@@ -282,7 +310,8 @@ const server = http.createServer(async (req, res) => {
             const stage = String(body.stage || 'general');
             const messages = Array.isArray(body.messages) ? body.messages : [];
             if (messages.length === 0) { sendJSON(res, 400, { error: '消息不能为空' }); return; }
-            const sysPrompt = STAGE_SYSTEM_PROMPTS[stage] || STAGE_SYSTEM_PROMPTS.general;
+            const sysPrompt = (STAGE_SYSTEM_PROMPTS[stage] || STAGE_SYSTEM_PROMPTS.general)
+                + (LEVEL_SYSTEM_ADDONS[body.level] || '');
             const r = await fetch(`${DASHSCOPE_BASE}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -367,12 +396,12 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/export' && req.method === 'GET') {
         if (!checkTeacherToken(req, url)) { sendJSON(res, 401, { error: '无权导出' }); return; }
         const reports = await readReports();
-        const headers = ['姓名', '学号', '课程', '指导教师', '阶段', '完成状态', '回答问题数', '问题总数', '使用帮助次数', '追问次数', '首次访问', '完成时间', '学习反思', '提交时间'];
+        const headers = ['姓名', '学号', '课程', '指导教师', '学习水平', '阶段', '完成状态', '回答问题数', '问题总数', '使用帮助次数', '追问次数', '首次访问', '完成时间', '学习反思', '提交时间'];
         let csv = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n';
         reports.forEach(s => {
             for (let i = 1; i <= 4; i++) {
                 const st = (s.stages && s.stages[i]) || { status: '未开始', answered: 0, total: 0, hints: 0, exchanges: 0, start: '', complete: '' };
-                csv += [`"${s.name || '—'}"`, `"${s.studentId || '—'}"`, `"${s.course || '—'}"`, `"${s.teacher || '—'}"`,
+                csv += [`"${s.name || '—'}"`, `"${s.studentId || '—'}"`, `"${s.course || '—'}"`, `"${s.teacher || '—'}"`, `"${s.levelLabel || '未选择'}"`,
                     `"阶段${i}"`, `"${st.status}"`, `"${st.answered}"`, `"${st.total}"`, `"${st.hints}"`, `"${st.exchanges}"`,
                     `"${st.start || ''}"`, `"${st.complete || ''}"`, `"${i === 4 ? (s.reflection || '') : ''}"`,
                     `"${s.submittedAt || s.updatedAt || ''}"`].join(',') + '\n';

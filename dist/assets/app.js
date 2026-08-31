@@ -16,6 +16,8 @@ const defaultState = {
         4: { completed: false, qIdx: 0, answers: [], helpExchanges: [], hintsUsed: 0, startTime: null, completeTime: null, lastAccess: null }
     },
     researchDesign: { question: '', varY: '', varX: '', controls: '' },
+    level: null,          // 'beginner' | 'intermediate' | 'advanced' | null（未选择）
+    levelHistory: [],     // 水平变更记录 [{from, to, time}]
     currentStage: null,
     globalStart: null
 };
@@ -50,6 +52,167 @@ function fmtTime(ts) {
     const d = new Date(ts);
     return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
+
+// ====== 分层引导体系（按学生水平适配引导深度） ======
+const LEVELS = {
+    beginner: {
+        label: '初学者', icon: '🌱',
+        desc: '计量基础薄弱或概念不清晰。系统直接讲解概念、给出示例回答，手把手带你走，不会被反问卡住。',
+        hintAfter: 1,     // 失败 1 次后自动展开提示
+        exampleAfter: 2   // 失败 2 次后自动展示参考示例
+    },
+    intermediate: {
+        label: '进阶', icon: '🚀',
+        desc: '学过计量经济学基础课程。以启发式引导为主，卡住时自动给提示，必要时给示例。',
+        hintAfter: 2,
+        exampleAfter: 3
+    },
+    advanced: {
+        label: '高级', icon: '🎓',
+        desc: '熟悉计量方法与实证流程。纯苏格拉底式追问，不主动给提示，挑战最深的理解。',
+        hintAfter: 99,
+        exampleAfter: 99
+    }
+};
+
+function currentLevel() {
+    return (state.level && LEVELS[state.level]) ? state.level : null;
+}
+
+function setLevel(lv, silent) {
+    if (!LEVELS[lv]) return;
+    const from = state.level || '（未选择）';
+    state.level = lv;
+    state.levelHistory.push({ from, to: lv, time: Date.now() });
+    saveState();
+    if (!silent) showToast(`已切换为「${LEVELS[lv].label}」引导模式`, 'success');
+    // 刷新当前视图
+    if (location.hash.startsWith('#stage')) {
+        renderStage(parseInt(location.hash.replace('#stage', '')));
+    } else if (location.hash.replace('#', '') === 'home' || !location.hash) {
+        renderLanding();
+    }
+}
+
+// 渲染水平选择卡片（首页）
+function renderLevelCard() {
+    const sec = $('levelSection');
+    if (!sec) return;
+    const lv = currentLevel();
+    if (!lv) {
+        sec.innerHTML = `
+            <div class="lv-card lv-card-prompt">
+                <div class="lv-card-title">🧭 开始之前：选择你的基础水平</div>
+                <p class="lv-card-sub">不同水平会获得不同深度的引导——初学者直接获得概念讲解与示例，不会因反问式引导而卡住。选错也没关系，随时可以更换。</p>
+                <div class="lv-options">
+                    ${Object.entries(LEVELS).map(([k, L]) => `
+                        <button class="lv-option" onclick="setLevel('${k}')">
+                            <div class="lv-option-head"><span class="lv-option-icon">${L.icon}</span><span class="lv-option-name">${L.label}</span></div>
+                            <div class="lv-option-desc">${L.desc}</div>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        const L = LEVELS[lv];
+        sec.innerHTML = `
+            <div class="lv-card lv-card-set">
+                <div class="lv-card-set-info">
+                    <span class="lv-badge">${L.icon} ${L.label}模式</span>
+                    <span class="lv-card-set-desc">${L.desc}</span>
+                </div>
+                <button class="btn-secondary" style="padding:7px 14px;font-size:12.5px" onclick="toggleLevelSwitcher()">更换水平</button>
+                <div class="lv-switcher" id="lvSwitcher" hidden>
+                    ${Object.entries(LEVELS).map(([k, LL]) => `
+                        <button class="lv-switch-btn ${k === lv ? 'active' : ''}" onclick="setLevel('${k}')">${LL.icon} ${LL.label}</button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+}
+
+function toggleLevelSwitcher() {
+    const sw = $('lvSwitcher');
+    if (sw) sw.hidden = !sw.hidden;
+}
+
+// 阶段页顶部的水平提示条（问答型阶段）
+function levelChipBarHtml() {
+    const lv = currentLevel();
+    if (!lv) return '';
+    const L = LEVELS[lv];
+    const tips = {
+        beginner: '概念不清楚就点「需要帮助」，失败后系统会自动给出提示和参考示例',
+        intermediate: '先自己思考，卡住了再要提示；连续失败会自动升级帮助',
+        advanced: '本模式不主动提供提示，鼓励你独立推演；随时可切换水平'
+    };
+    return `
+        <div class="lv-chip-bar">
+            <span class="lv-badge">${L.icon} ${L.label}引导</span>
+            <span class="lv-chip-tip">${tips[lv]}</span>
+            <button class="lv-chip-switch" onclick="toggleStageLevelSwitch(this)">切换</button>
+        </div>
+    `;
+}
+
+function toggleStageLevelSwitch(btn) {
+    let sw = $('stageLvSwitcher');
+    if (!sw) {
+        sw = document.createElement('div');
+        sw.id = 'stageLvSwitcher';
+        sw.className = 'lv-switcher inline';
+        sw.innerHTML = Object.entries(LEVELS).map(([k, LL]) =>
+            `<button class="lv-switch-btn ${k === currentLevel() ? 'active' : ''}" onclick="setLevel('${k}')">${LL.icon} ${LL.label}</button>`
+        ).join('');
+        btn.parentElement.appendChild(sw);
+    } else {
+        sw.remove();
+    }
+}
+
+// 初学者概念讲解卡（从题目已有的 followUps/hint/concepts 自动生成）
+function getConceptCardHtml(q) {
+    const pick = re => {
+        if (!q.followUps) return null;
+        for (const [pattern, resp] of Object.entries(q.followUps)) {
+            if (new RegExp(re).test(pattern)) return resp;
+        }
+        return null;
+    };
+    const def = pick('什么|定义');
+    const how = pick('怎么|如何');
+    const why = pick('为什么|为何');
+    const eg = pick('例子|举例');
+    const points = (q.concepts || []).map(c => c.missing);
+    let html = `<div class="concept-card">
+        <div class="concept-card-title">📖 概念讲解（初学者模式自动展开）</div>`;
+    if (def) html += `<div class="concept-row"><span class="concept-tag">是什么</span><span>${def}</span></div>`;
+    if (how) html += `<div class="concept-row"><span class="concept-tag">怎么做</span><span>${how}</span></div>`;
+    if (eg) html += `<div class="concept-row"><span class="concept-tag">举个例子</span><span>${eg}</span></div>`;
+    else if (q.hint) html += `<div class="concept-row"><span class="concept-tag">提示</span><span>${q.hint}</span></div>`;
+    if (why) html += `<div class="concept-row"><span class="concept-tag">为什么</span><span>${why}</span></div>`;
+    if (points.length) html += `<div class="concept-points">✍️ 回答要点：${points.map(p => `「${p}」`).join(' ')}</div>`;
+    html += `</div>`;
+    return html;
+}
+
+// 参考示例回答（按 阶段-题号 索引；仅初学者/进阶在多次尝试后可见）
+const EXAMPLE_ANSWERS = {
+    '1-0': '示例：「数字普惠金融的发展是否促进了居民消费水平的提升？」——我关心数字金融这一新业态对居民消费的因果影响。',
+    '1-1': '示例：被解释变量 Y 是居民消费水平，用「人均消费支出的对数 ln(consume)」衡量，可从国家统计局或 CFPS 调查获得。',
+    '1-2': '示例：核心解释变量 X 是数字普惠金融指数（北大数字金融指数），衡量各地区数字金融发展水平。',
+    '1-3': '示例：控制变量包括人均可支配收入、城镇化率、老龄化率，并加入地区与年份固定效应。若遗漏收入，它会同时影响消费与金融发展，导致 β₁ 估计偏大（遗漏变量偏误）。',
+    '3-0': '示例：把月度 X 在季度内取平均值，降频为季度数据与 Y 对齐；不用插值升频，因为插值会人为引入平滑假设、扭曲真实波动。',
+    '3-1': '示例：先判断缺失机制——若是个别年份统计口径变动的随机缺失，直接删掉该观测；若是与经济水平相关的非随机缺失，用线性插值补全，并对比「删除样本」做稳健性检验。',
+    '3-2': '示例：会。对 GDP、收入、消费等正值变量取对数：①压缩尺度、缓解极端值影响；②使偏态分布更接近正态；③系数可直接解释为弹性。',
+    '4-0': '示例：首先做平稳性检验（ADF 单位根检验）。若变量非平稳就直接回归，会出现「伪回归」——t 值和 R² 虚高、看似显著实则无意义。应先差分或检验协整。',
+    '4-1': '示例：多重共线性会膨胀估计方差、让 t 检验失效（变量实际显著但 t 值不显著）、系数符号紊乱。用 VIF 检测，VIF > 10 说明严重共线性，可剔除变量或用岭回归。',
+    '4-2': '示例：lnC_it = β₀ + β₁DIF_it + β₂lnInc_it + β₃Urb_it + μᵢ + λₜ + εᵢₜ。β₁ 是核心系数（数字金融对消费的边际效应）；μᵢ 个体固定效应、λₜ 时间固定效应、εᵢₜ 随机扰动。',
+    '4-3': '示例：t = β₁ / se(β₁) = 0.45 / 0.12 = 3.75。t 值远大于 1.96（5% 临界值），说明 β₁ 显著不为零。',
+    '4-4': '示例：t = 3.75 > 1.96，p < 0.001，在 5% 水平下拒绝 H₀，β₁ 统计显著为正。经济含义：X 每提高 1 单位，Y 平均提高 0.45 单位（若取对数则近似弹性 0.45%），效应有实际意义。'
+};
 
 // ====== 阶段与问题定义 ======
 const stages = {
@@ -557,6 +720,9 @@ function renderLanding() {
         banner.hidden = true;
     }
     
+    // 渲染水平选择卡片
+    renderLevelCard();
+
     // 渲染模块卡片
     const grid = $('modulesGrid');
     grid.innerHTML = '';
@@ -728,6 +894,7 @@ async function renderStage(stageNum) {
             <h2>${stage.title}</h2>
             <p class="stage-intro">${stage.intro}</p>
         </div>
+        ${levelChipBarHtml()}
         ${subStepsHtml}
         <div class="dialogue-area" id="dialogueArea"></div>
         <div id="dynamicArea"></div>
@@ -951,7 +1118,12 @@ async function askQuestion(stageNum) {
     }
     
     await addMsg('tutor', q.text);
-    
+
+    // 初学者模式：提问后自动附概念讲解卡，避免因概念不清而卡住
+    if (currentLevel() === 'beginner' && (q.followUps || q.hint || q.concepts)) {
+        await addMsg('tutor', getConceptCardHtml(q), false);
+    }
+
     // 显示输入面板
     renderInputPanel(stageNum);
 }
@@ -963,6 +1135,30 @@ function updateSubStep(sub) {
 }
 
 function renderInputPanel(stageNum) {
+    const stage = stages[stageNum];
+    const prog = state.progress[stageNum];
+    const q = stage.questions[prog.qIdx];
+    const lv = currentLevel();
+    const L = lv ? LEVELS[lv] : null;
+    const fails = (prog.attempts && prog.attempts[prog.qIdx]) || 0;
+
+    // 按水平与失败次数决定是否自动展开提示 / 参考示例
+    const showHint = L && q && q.hint && fails >= L.hintAfter;
+    const exampleKey = q ? `${stageNum}-${prog.qIdx}` : null;
+    const showExample = L && exampleKey && EXAMPLE_ANSWERS[exampleKey] && fails >= L.exampleAfter;
+
+    const helpHtml = showHint || showExample ? `
+        <div class="scaffold-box">
+            ${showHint ? `<div class="scaffold-hint"><strong>💡 提示：</strong>${q.hint}</div>` : ''}
+            ${showExample ? `
+                <details class="scaffold-example">
+                    <summary>👀 查看参考示例回答（请结合自己的研究改写后再提交）</summary>
+                    <div class="scaffold-example-body">${EXAMPLE_ANSWERS[exampleKey]}</div>
+                </details>
+            ` : ''}
+        </div>
+    ` : '';
+
     const area = $('dynamicArea');
     area.innerHTML = `
         <div class="input-panel" id="inputPanel">
@@ -970,6 +1166,7 @@ function renderInputPanel(stageNum) {
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5H17M3 10H17M3 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 <span>请回答导师的提问</span>
             </div>
+            ${helpHtml}
             <textarea id="answerInput" class="text-input" rows="4" placeholder="在此输入你的思考..."></textarea>
             <div class="input-actions">
                 <button class="btn-secondary" onclick="openHelp(${stageNum})">需要帮助</button>
@@ -992,7 +1189,26 @@ async function submitAnswer(stageNum) {
     const q = stage.questions[prog.qIdx];
     
     if (q.validate && !q.validate(ans)) {
-        showToast(q.error || '回答不够完整，请重新思考', 'error');
+        // 记录失败次数，用于按水平自动升级帮助（提示 → 参考示例）
+        prog.attempts = prog.attempts || [];
+        prog.attempts[prog.qIdx] = (prog.attempts[prog.qIdx] || 0) + 1;
+        const fails = prog.attempts[prog.qIdx];
+        saveState();
+
+        // 保留草稿并刷新输入面板（可能自动展开提示/示例）
+        const preserved = input.value;
+        renderInputPanel(stageNum);
+        const newInput = $('answerInput');
+        if (newInput) newInput.value = preserved;
+
+        let extra = '';
+        const lv = currentLevel();
+        if (lv) {
+            const L = LEVELS[lv];
+            if (fails === L.hintAfter) extra = '，已为你自动展开提示';
+            else if (fails === L.exampleAfter && EXAMPLE_ANSWERS[`${stageNum}-${prog.qIdx}`]) extra = '，可查看参考示例';
+        }
+        showToast((q.error || '回答不够完整，请重新思考') + extra, 'error');
         return;
     }
     
@@ -1371,8 +1587,10 @@ function renderReport() {
     const totalFollowUps = Object.values(state.progress).reduce((s, p) => s + p.helpExchanges.length, 0);
     const completedCount = Object.values(state.progress).filter(p => p.completed).length;
     
+    const lv = currentLevel();
     $('statsSummary').innerHTML = `
         <strong>学习总览：</strong>共完成 ${completedCount}/4 个阶段，回答 ${totalAnswers} 个问题，使用 ${totalHints} 次帮助，进行了 ${totalFollowUps} 次追问。
+        引导水平：${lv ? `${LEVELS[lv].icon} ${LEVELS[lv].label}` : '未选择'}${state.levelHistory.length > 1 ? `（累计调整 ${state.levelHistory.length - 1} 次）` : ''}。
         ${state.globalStart ? `首次学习时间：${fmtTime(state.globalStart)}` : ''}
     `;
 }
@@ -1391,8 +1609,9 @@ function exportCSV() {
     saveStudentInfo();
     
     const student = state.student;
-    const headers = ['姓名', '学号', '课程', '指导教师', '阶段', '阶段名称', '完成状态', '回答问题数', '问题总数', '使用帮助次数', '追问次数', '首次访问', '完成时间', '学习反思'];
-    
+    const lvLabel = currentLevel() ? `${LEVELS[currentLevel()].label}` : '未选择';
+    const headers = ['姓名', '学号', '课程', '指导教师', '学习水平', '阶段', '阶段名称', '完成状态', '回答问题数', '问题总数', '使用帮助次数', '追问次数', '首次访问', '完成时间', '学习反思'];
+
     const rows = [];
     for (let i = 1; i <= 4; i++) {
         const p = state.progress[i];
@@ -1401,6 +1620,7 @@ function exportCSV() {
             student.id || '—',
             student.course || '—',
             student.teacher || '—',
+            lvLabel,
             `阶段${i}`,
             stages[i].title,
             p.completed ? '已完成' : (p.qIdx > 0 ? '进行中' : '未开始'),
@@ -1507,6 +1727,9 @@ async function submitToBackend() {
         course: student.course || '',
         teacher: student.teacher || '',
         reflection: student.reflection || '',
+        level: currentLevel() || '',
+        levelLabel: currentLevel() ? LEVELS[currentLevel()].label : '未选择',
+        levelHistory: state.levelHistory || [],
         stages: {},
         answers: []
     };
@@ -1755,6 +1978,7 @@ function renderLiveTable(data) {
         return `<tr>
             <td>${s.name || '—'}</td>
             <td>${s.studentId || '—'}</td>
+            <td style="text-align:center">${s.levelLabel || '—'}</td>
             ${cells.map(c => `<td style="text-align:center">${c}</td>`).join('')}
             <td style="text-align:center">${totalH}</td>
             <td style="text-align:center">${totalE}</td>
@@ -1785,6 +2009,7 @@ function showStudentModal(studentId) {
     html += '<div class="modal-section"><div class="modal-section-title">基本信息</div><div class="modal-info-grid">';
     html += infoItem('姓名', s.name);
     html += infoItem('学号', s.studentId);
+    html += infoItem('引导水平', s.levelLabel || '未选择');
     html += infoItem('课程', s.course);
     html += infoItem('指导教师', s.teacher);
     const submitTime = s.submittedAt || s.updatedAt || '';
@@ -2299,7 +2524,7 @@ async function sendAIMessage(predefinedText) {
         const r = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: stageNum, messages: aiChatHistory })
+            body: JSON.stringify({ stage: stageNum, level: currentLevel() || 'intermediate', messages: aiChatHistory })
         });
         const data = await r.json();
         if (!r.ok) {
@@ -2414,7 +2639,7 @@ async function sendPaperMessage(predefinedText) {
         const r = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: 5, messages: aiChatHistory })
+            body: JSON.stringify({ stage: 5, level: currentLevel() || 'intermediate', messages: aiChatHistory })
         });
         const data = await r.json();
         if (!r.ok) {
