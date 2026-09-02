@@ -1839,11 +1839,14 @@ function tryTeacherLogin() {
 
 function teacherLogout() {
     sessionStorage.removeItem('teacherAuthed');
+    sessionStorage.setItem('teacherGuardPushed', '0');
     navigate('home');
     showToast('已退出教师登录', 'info');
 }
 
 async function renderTeacher() {
+    // 已登录进入面板：压入返回键防护（防止误触返回直接退出教师端）
+    armTeacherGuard();
     // 先检测后端
     backendOnline = await checkBackend();
     const dot = $('liveDot');
@@ -2056,13 +2059,59 @@ function showStudentModal(studentId) {
 
     $('modalBody').innerHTML = html;
     $('studentModal').hidden = false;
+    armModalGuard();
 }
 
 function infoItem(label, value) {
     return `<div class="modal-info-item"><span class="modal-info-label">${label}</span><span class="modal-info-value">${value || '—'}</span></div>`;
 }
 
-function closeStudentModal() { $('studentModal').hidden = true; }
+// ===== 返回键防护（history guard）=====
+// 问题：学生详情是弹窗（非路由），教师打开详情后按浏览器/手机返回键，
+// 浏览器直接历史后退 → 跳回首页，被踢出教师端。
+// 方案：打开弹窗/进入教师面板时压入一条"影子"历史记录，
+// 返回键先消耗影子记录（hash 不变、不触发路由）：
+//   - 弹窗开着 → 关闭弹窗（返回 = 关闭详情）
+//   - 教师面板 → 第一次提示"再按一次退出"，第二次才真正退出
+let modalGuardArmed = false;
+
+function armModalGuard() {
+    if (modalGuardArmed) return;
+    try { history.pushState({ ecoModalGuard: true }, '', location.hash || '#'); modalGuardArmed = true; } catch (e) {}
+}
+
+function disarmModalGuard() {
+    // 正常关闭弹窗时主动消掉影子记录（hash 相同，无视觉影响）
+    if (!modalGuardArmed) return;
+    modalGuardArmed = false;
+    try { history.back(); } catch (e) {}
+}
+
+function armTeacherGuard() {
+    // sessionStorage 防重复：刷新后影子记录仍在历史栈中，不能重复压入
+    if (sessionStorage.getItem('teacherGuardPushed') === '1') return;
+    try {
+        history.pushState({ ecoTeacherGuard: true }, '', location.hash || '#');
+        sessionStorage.setItem('teacherGuardPushed', '1');
+    } catch (e) {}
+}
+
+window.addEventListener('popstate', () => {
+    // 1) 弹窗影子被返回键消耗：hash 未变，关闭弹窗并吞掉这次返回
+    if (modalGuardArmed) {
+        modalGuardArmed = false;
+        const m = $('studentModal');
+        if (m && !m.hidden) { m.hidden = true; return; }
+    }
+    // 2) 教师面板影子被消耗：hash 仍为 #teacher（不触发 hashchange，面板保持显示）
+    const hash = location.hash.replace('#', '') || 'home';
+    if (hash === 'teacher' && sessionStorage.getItem('teacherGuardPushed') === '1' && sessionStorage.getItem('teacherAuthed') === '1') {
+        sessionStorage.setItem('teacherGuardPushed', '0');
+        showToast('再按一次返回将退出教师管理台', 'info');
+    }
+});
+
+function closeStudentModal() { disarmModalGuard(); $('studentModal').hidden = true; }
 
 // ESC 键 + 点击遮罩关闭
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('studentModal').hidden) closeStudentModal(); });
