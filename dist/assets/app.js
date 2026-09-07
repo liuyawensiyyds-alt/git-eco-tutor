@@ -54,24 +54,39 @@ function fmtTime(ts) {
 }
 
 // ====== 分层引导体系（按学生水平适配引导深度） ======
+// 关键差异（同一研究阶段在三档下 UI 形态截然不同）：
+//   beginner    → 详细苏格拉底 + 概念卡自动展开 + 1/2次失败后给提示/示例 + 列答题要点
+//   intermediate → 简化苏格拉底 + 2/3次失败后给提示/示例 + 列答题要点（要点在前让用户先思考）
+//   advanced    → 完全不走 Q&A，直接呈现「专业级工具集」（研究设计 / 数据获取 / 数据清洗 / 实证推演工具）
+//   advanced    → 入口需 PRO_TOKEN 密码（防止学生直接跳过前两档拿现成成果）
+const PRO_TOKEN = 'eco-pro-2026';
 const LEVELS = {
     beginner: {
         label: '初学者', icon: '🌱',
-        desc: '计量基础薄弱或概念不清晰。系统直接讲解概念、给出示例回答，手把手带你走，不会被反问卡住。',
-        hintAfter: 1,     // 失败 1 次后自动展开提示
-        exampleAfter: 2   // 失败 2 次后自动展示参考示例
+        shortDesc: '概念不清楚也能跟上',
+        desc: '系统直接讲解概念，给出示例回答，手把手带你走。适合刚接触计量或基础概念模糊的同学。',
+        hintAfter: 1, exampleAfter: 2,
+        showConceptCard: true,    // 题目下自动展开「是什么 / 怎么做 / 为什么」概念卡
+        showAnswerPoints: true,   // 自动列出本题答题要点
+        renderMode: 'socratic_full'
     },
     intermediate: {
         label: '进阶', icon: '🚀',
-        desc: '学过计量经济学基础课程。以启发式引导为主，卡住时自动给提示，必要时给示例。',
-        hintAfter: 2,
-        exampleAfter: 3
+        shortDesc: '启发式引导，独立思考',
+        desc: '以启发式引导为主。系统不再手把手教，但卡住了会逐步给提示，并提示答题要点让你自检。',
+        hintAfter: 2, exampleAfter: 3,
+        showConceptCard: false,   // 移除详细概念卡，鼓励独立思考
+        showAnswerPoints: true,   // 保留自检要点
+        renderMode: 'socratic_lite'
     },
     advanced: {
         label: '高级', icon: '🎓',
-        desc: '熟悉计量方法与实证流程。纯苏格拉底式追问，不主动给提示，挑战最深的理解。',
-        hintAfter: 99,
-        exampleAfter: 99
+        shortDesc: '专业工具 · 不做引导',
+        desc: '🎓 PRO 模式 · 为已掌握实证流程的学生提供专业工具：研究设计变量定义、数据获取代码生成、CSV 数据清洗、OLS 回归输出。直接交付可用的代码与模型，**不走任何问答引导**。',
+        hintAfter: 99, exampleAfter: 99,
+        showConceptCard: false,
+        showAnswerPoints: false,
+        renderMode: 'pro_tool'        // 关键：完全不同的渲染分支
     }
 };
 
@@ -80,6 +95,22 @@ function currentLevel() {
 }
 
 function setLevel(lv, silent) {
+    if (!LEVELS[lv]) return;
+    // 高手档单独走密码门禁逻辑
+    if (lv === 'advanced') {
+        if (sessionStorage.getItem('proAuthed') === '1') {
+            // 已授权，直接设置
+            applySetLevel(lv, silent);
+        } else {
+            // 弹密码输入
+            promptProPassword(lv, silent);
+        }
+        return;
+    }
+    applySetLevel(lv, silent);
+}
+
+function applySetLevel(lv, silent) {
     if (!LEVELS[lv]) return;
     const from = state.level || '（未选择）';
     state.level = lv;
@@ -91,6 +122,72 @@ function setLevel(lv, silent) {
         renderStage(parseInt(location.hash.replace('#stage', '')));
     } else if (location.hash.replace('#', '') === 'home' || !location.hash) {
         renderLanding();
+    }
+}
+
+// 高手档密码弹窗
+function promptProPassword(targetLv, silent) {
+    // 移除已有弹窗
+    const old = $('proPwModal');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'proPwModal';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal-box pro-pw-modal">
+            <div class="modal-header">
+                <h3>🔒 高手档 · 授权验证</h3>
+                <button class="modal-close" onclick="closeProPwModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="pro-pw-intro">
+                    高手档是 <strong>专业级工具集合</strong>（变量定义模板、取数代码生成、CSV 清洗、OLS 模型设定），不走任何问答引导，可直接拿到可用工具与代码。<br><br>
+                    为防止学生跳过前两阶段直接拿现成成果，本档需教师授权密码。
+                </p>
+                <div class="pro-pw-cap">
+                    <div class="pro-cap-item"><span class="pro-cap-icon">🧰</span><div class="pro-cap-text"><span class="pro-cap-name">研究设计工具</span><span class="pro-cap-desc">变量定义模板 + 模型公式自动生成</span></div></div>
+                    <div class="pro-cap-item"><span class="pro-cap-icon">📊</span><div class="pro-cap-text"><span class="pro-cap-name">数据获取工具</span><span class="pro-cap-desc">AKShare / Tushare / Stata 取数代码模板</span></div></div>
+                    <div class="pro-cap-item"><span class="pro-cap-icon">🧹</span><div class="pro-cap-text"><span class="pro-cap-name">数据清洗工作台</span><span class="pro-cap-desc">CSV 上传 → 频度对齐 → 缺失处理 → 对数化 → 导出</span></div></div>
+                    <div class="pro-cap-item"><span class="pro-cap-icon">📐</span><div class="pro-cap-text"><span class="pro-cap-name">OLS 回归计算器</span><span class="pro-cap-desc">模型设定 → Stata / R / Python 代码自动生成</span></div></div>
+                </div>
+                <label class="pro-pw-label">请输入授权密码（向任课教师索取）</label>
+                <input type="password" id="proPwInput" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter') tryProPassword('${targetLv}', ${silent ? 'true' : 'false'})" autocomplete="off">
+                <div id="proPwHint" class="pro-pw-hint"></div>
+                <div class="pro-pw-actions">
+                    <button class="btn-secondary" onclick="closeProPwModal()">取消</button>
+                    <button class="btn-primary" onclick="tryProPassword('${targetLv}', ${silent ? 'true' : 'false'})">解锁高手档</button>
+                </div>
+                <div class="pro-pw-tip">💡 本次会话内有效，关闭页面后需重新输入。如需获取密码请咨询任课教师。</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.hidden = false;
+    setTimeout(() => $('proPwInput')?.focus(), 50);
+}
+
+function closeProPwModal() {
+    const m = $('proPwModal');
+    if (m) m.remove();
+}
+
+function tryProPassword(targetLv, silent) {
+    const pwd = $('proPwInput')?.value || '';
+    const hint = $('proPwHint');
+    if (pwd === PRO_TOKEN) {
+        sessionStorage.setItem('proAuthed', '1');
+        hint.classList.remove('error');
+        hint.textContent = '✓ 验证通过，已解锁高手档';
+        setTimeout(() => {
+            closeProPwModal();
+            applySetLevel(targetLv, silent);
+        }, 600);
+    } else {
+        hint.classList.add('error');
+        hint.textContent = '✗ 密码错误，请向任课教师索取正确密码';
+        const inp = $('proPwInput');
+        if (inp) { inp.value = ''; inp.focus(); }
     }
 }
 
@@ -320,22 +417,172 @@ const stages = {
                     id: 'macro', label: '宏观经济数据', icon: '🏛️',
                     tip: 'GDP、CPI、PMI、货币、财政、贸易等国家级指标，官方免费、最权威。',
                     sources: [
-                        { name: '国家统计局 · 国家数据平台', url: 'https://data.stats.gov.cn', content: 'GDP、CPI、PPI、PMI、固定资产投资、社零总额、工业增加值、居民收入', freq: '月度/季度/年度', how: '按指标·地区·时间筛选 → 导出 Excel（免费免注册）' },
-                        { name: '中国人民银行', url: 'http://www.pbc.gov.cn', content: 'M0/M1/M2、社融规模、LPR/SHIBOR 利率、汇率、外汇储备', freq: '月度（LPR 每月20日）', how: '官网"调查统计"栏目' },
-                        { name: '财政部', url: 'http://www.mof.gov.cn', content: '财政收支、税收收入、国债发行、地方政府债务', freq: '月度/年度', how: '官网"财政数据"栏目' },
-                        { name: '海关总署', url: 'http://www.customs.gov.cn', content: '进出口贸易额、贸易顺差/逆差、按商品/国别分类数据', freq: '月度', how: '官网统计栏目；细粒度 HS 编码数据走海关统计咨询网' },
-                        { name: '商务部', url: 'http://www.mofcom.gov.cn', content: 'FDI 利用外资、对外投资 ODI、消费市场、电商交易额', freq: '月度/季度', how: '官网统计数据栏目' }
+                        {
+                            name: '国家统计局 · 国家数据平台', url: 'https://data.stats.gov.cn',
+                            content: 'GDP、CPI、PPI、PMI、固定资产投资、社零总额、工业增加值、居民收入',
+                            freq: '月度/季度/年度',
+                            how: '按指标·地区·时间筛选 → 导出 Excel（免费免注册）',
+                            steps: [
+                                { act: '进入官网 data.stats.gov.cn（无需注册）',
+                                  where: '首页顶部导航 →「国家数据」',
+                                  find: '左侧「指标」栏按主题浏览（月度/季度/年度/分省/分行业）',
+                                  why: '这是中国宏观数据最权威、最完整的免费来源，所有 GDP/CPI 官方数据都从这里出' },
+                                { act: '选择指标 → 选择时间区间 → 选择地区',
+                                  where: '页面中部的三重筛选器',
+                                  find: '搜索关键词如「居民消费」「CPI」「GDP 不变价」',
+                                  why: '避免直接搜"GDP"——每年统计局公布多个版本（现价/不变价/累计），选错就入坑' },
+                                { act: '点击「导出」按钮，存为 Excel/CSV',
+                                  where: '表格右上角',
+                                  find: '导出的文件命名包含「指标名+时间+单位」',
+                                  why: '导出后及时检查：①单位是否需要换算（亿元/万元）；②时间是否完整覆盖研究区间' }
+                            ],
+                            indicators: 'GDP（季度）、CPI/PPI（月度）、PMI（月度）、固定资产投资（月度）、社会消费品零售总额（月度）、工业增加值（月度）、城镇/农村人均可支配收入（季度/年度）',
+                            pitfall: '「累计」与「当月」数据容易搞混；季度 GDP 有初次核算 / 二次核算 / 最终核实 三个版本，做时间序列时建议以 2023 年经济普查后的最终数据为准；不同省份数据口径与全国可能不一致。'
+                        },
+                        {
+                            name: '中国人民银行', url: 'http://www.pbc.gov.cn',
+                            content: 'M0/M1/M2、社融规模、LPR/SHIBOR 利率、汇率、外汇储备',
+                            freq: '月度（LPR 每月 20 日 9:15）',
+                            how: '官网"调查统计"栏目',
+                            steps: [
+                                { act: '进入央行官网 →「调查统计」→ 选具体子栏目',
+                                  where: '首页顶部 → 数据栏目 → 调查统计',
+                                  find: '「货币统计概览」「社会融资规模」「利率""银行家问卷调查」',
+                                  why: '央行口径货币数据与中国统计年鉴口径略不同，引用时务必标注数据来源口径' },
+                                { act: 'LPR 利率：直接搜「贷款市场报价利率（LPR）」',
+                                  where: '首页搜索框',
+                                  find: '每月 20 日 9:15 公布的 1 年期/5 年期以上 LPR',
+                                  why: 'LPR 是央行政策利率锚，做利率市场化、银行风险承担研究必用' },
+                                { act: '下载时优先选 Excel 格式',
+                                  where: '历史数据查询 → 导出 Excel',
+                                  find: '同比/环比、月末/年初值',
+                                  why: '学术论文一般用「月度同比」做时序，避免使用「当月新增」绝对值' }
+                            ],
+                            indicators: 'M0/M1/M2 同比（月度）、社会融资规模增量（月度）、新增人民币贷款（月度）、LPR 1Y/5Y+（月度）、SHIBOR 隔夜/7天（日度）、人民币兑美元中间价（日度）、外汇储备（月度）',
+                            pitfall: 'M2 同比口径在 2018 年有过调整，回溯时间序列要做口径对齐（统计上有间断点）；央行公布的"新增贷款"与社融不一样，不可混用。'
+                        },
+                        {
+                            name: '财政部', url: 'http://www.mof.gov.cn',
+                            content: '财政收支、税收收入、国债发行、地方政府债务',
+                            freq: '月度/年度',
+                            how: '官网"财政数据"栏目',
+                            steps: [
+                                { act: '进入「财政数据」栏目 →「财政收支情况」',
+                                  where: '首页 → 数据栏目 → 财政数据',
+                                  find: '「一般公共预算收入/支出」「政府性基金收入/支出」',
+                                  why: '财政收支是研究地方政府行为、税制改革、隐性债务的必备数据' },
+                                { act: '查地方政府债务 →「地方政府债券发行情况」',
+                                  where: '首页 → 政府债券 → 地方政府债券',
+                                  find: '一般债 vs 专项债、发行额/余额、新增/再融资',
+                                  why: '研究"地方政府专项债"必须区分"项目收益专项债"和"普通专项债"，结构差异巨大' }
+                            ],
+                            indicators: '一般公共预算收入/支出（月度）、税收收入分税种（月度）、政府性基金收入（月度）、地方政府专项债发行额/余额（月度）、国债收益率曲线（日度）',
+                            pitfall: '财政数据中的「中央」与「地方」分项在不同年份可能调整口径，跨年度比较要核查。'
+                        },
+                        {
+                            name: '海关总署', url: 'http://www.customs.gov.cn',
+                            content: '进出口贸易额、贸易顺差/逆差、按商品/国别分类数据',
+                            freq: '月度',
+                            how: '官网统计栏目；细粒度 HS 编码数据走海关统计咨询网',
+                            steps: [
+                                { act: '海关总署官网 →「统计资讯」→「统计月报」',
+                                  where: '首页 → 政务公开 → 统计数据',
+                                  find: '进出口商品国别（地区）总值表、各商品 HS 编码出口数据',
+                                  why: '做贸易领域研究需要细致到 HS 编码（6 位）粒度，普通年度数据不足' },
+                                { act: '如需更细粒度的 HS 编码/价格数据',
+                                  where: '海关统计咨询网（需付费或学术申请）',
+                                  find: '可获取月度单价数据 → 用于企业层面出口研究',
+                                  why: '做"中国出口对目的国贸易的影响"类研究，企业-产品-目的国三维数据是刚需' }
+                            ],
+                            indicators: '进出口总额（月度）、对主要贸易伙伴进出口（月度）、按 HS 分类出口（月度）、实际利用外资（FDI，月度）',
+                            pitfall: '进出口当月值波动大，做趋势分析建议用「同比」或「年度累计"；美元与人民币口径要分清。'
+                        },
+                        {
+                            name: '商务部', url: 'http://www.mofcom.gov.cn',
+                            content: 'FDI 利用外资、对外投资 ODI、消费市场、电商交易额',
+                            freq: '月度/季度',
+                            how: '官网统计数据栏目',
+                            indicators: 'FDI 实际使用外资金额（月度）、对外直接投资（季度）、社会消费品零售总额分行业（月度）、电商交易额（半年报）',
+                            pitfall: 'FDI 商务部口径 vs 央行口径 vs 外汇局口径数据差异较大，引用必须标注来源。'
+                        }
                     ]
                 },
                 {
                     id: 'finance', label: '金融与资本市场', icon: '📈',
                     tip: '股价、财务报表、债券、基金数据。学校已购 Wind/CSMAR 权限时优先使用。',
                     sources: [
-                        { name: 'CSMAR / Wind / 中经研究数据库', url: 'https://www.gtarsc.com', content: '上市公司财务三表、股票行情、治理结构（高校图书馆通常已购买）', freq: '日度及以上', how: '先问图书馆/院系拿权限 → 导出目标企业名单（带股票代码）→ 用 VLOOKUP 匹配财务指标' },
-                        { name: 'AKShare（Python · 免费）', url: 'https://akshare.akfamily.xyz', content: 'A股/期货/基金/宏观数据，Wind 的免费开源替代', freq: '日度/实时', how: 'pip install akshare → 按接口文档调用，返回 DataFrame' },
-                        { name: 'Tushare（Python）', url: 'https://tushare.pro', content: '股票日线、财务数据、宏观数据（基础免费，高级需积分）', freq: '日度', how: '注册取 token → pip install tushare' },
-                        { name: '巨潮资讯网', url: 'http://www.cninfo.com.cn', content: '上市公司年报/季报/公告全文', freq: '按披露', how: '可批量下载 XBRL 结构化财务数据' },
-                        { name: '中国债券信息网 / 外汇交易中心', url: 'https://www.chinabond.com.cn', content: '国债收益率曲线、债券指数 / 人民币汇率中间价、SHIBOR', freq: '日度', how: '官网数据栏目直接下载' }
+                        {
+                            name: 'CSMAR / Wind / 中经研究数据库', url: 'https://www.gtarsc.com',
+                            content: '上市公司财务三表、股票行情、治理结构（高校图书馆通常已购买）',
+                            freq: '日度及以上',
+                            how: '先问图书馆/院系拿权限 → 导出目标企业名单（带股票代码）→ 用 VLOOKUP 匹配财务指标',
+                            steps: [
+                                { act: '确认学校/院系是否已购 CSMAR 数据库',
+                                  where: '图书馆官网 →「电子资源」→"CSMAR" 或 "Wind"',
+                                  find: '校外访问一般需 VPN + 校园账号',
+                                  why: 'CSMAR 是覆盖最全的中国上市公司财务/股票数据库，免费版数据延迟 1-2 年，付费版实时' },
+                                { act: '登录后选择研究主题',
+                                  where: 'CSMAR 首页 → 股票市场系列 → 公司研究系列',
+                                  find: '研究主题如「财务指标」「公司治理」「高管薪酬""股票交易」',
+                                  why: 'CSMAR 主题分类细致，先按主题切好范围再按企业切' },
+                                { act: '用股票代码筛选企业（带证交所编号）',
+                                  where: 'CSMAR 高级查询 → 企业筛选',
+                                  find: '可按行业（证监会行业分类）/地区/上市时间筛选',
+                                  why: '避免直接下载全部 A 股再筛——3000+ 家全量年度数据下载耗时 30 分钟+' },
+                                { act: '导出 CSV 文件（GBK 编码）→ 用 Python / Stata 处理',
+                                  where: '查询结果右上角 →「导出」',
+                                  find: 'Stata 用户记得在 import 中加 encoding("utf-8") 或先转码',
+                                  why: 'CSMAR 默认 GBK 编码，直接 read.csv 会乱码' }
+                            ],
+                            indicators: '总资产/营业收入/净利润（年度/季度）、ROE/ROA、Tobin Q、研发支出、董事会规模、独立董事占比、高管前三薪酬、月度股票日收益率、年度财务困境指数 Z 指数、ESG 评分',
+                            pitfall: '① 行业归属"上市公司行业变更"问题——研究期内可能因并购导致行业改变，要检查并固定；② ST/*ST 处理——剔除异常公司是常见的稳健性做法；③ 总资产/股本数额巨大，请用「对数化」处理再做回归。'
+                        },
+                        {
+                            name: 'AKShare（Python · 免费）', url: 'https://akshare.akfamily.xyz',
+                            content: 'A股/期货/基金/宏观数据，Wind 的免费开源替代',
+                            freq: '日度/实时',
+                            how: 'pip install akshare → 按接口文档调用，返回 DataFrame',
+                            steps: [
+                                { act: '安装 AKShare',
+                                  where: '终端 / Anaconda Prompt',
+                                  find: 'pip install akshare —upgrade',
+                                  why: 'AKShare 接口持续更新，必须升级到最新版才能用上新接口' },
+                                { act: '导入并查看文档',
+                                  where: 'https://akshare.akfamily.xyz 查看左侧接口列表',
+                                  find: '按需查：宏观数据 / 股票数据 / 期货数据 / 基金 / 利率',
+                                  why: 'AKShare 接口名称直观——例如 macro_china_cpi = 中国 CPI 接口' },
+                                { act: '调用接口并缓存到本地',
+                                  where: 'Python 脚本',
+                                  find: 'df = ak.macro_china_gdp()\ndf.to_csv("gdp.csv", index=False)',
+                                  why: 'AKShare 不限制调用频率，建议全部缓存到本地 CSV，避免反复调用' }
+                            ],
+                            indicators: 'A 股日线/分钟线、ETF 净值、期货持仓、LPR/SHIBOR、GDP/CPI、货币供应量、PMI、社会融资规模、上市公司财务数据',
+                            pitfall: '一些接口会因数据源调整而短期失效，遇到空数据先升级 akshare；不要在论文中过度依赖单接口（数据源可能下线）。'
+                        },
+                        {
+                            name: 'Tushare（Python）', url: 'https://tushare.pro',
+                            content: '股票日线、财务数据、宏观数据（基础免费，高级需积分）',
+                            freq: '日度',
+                            how: '注册取 token → pip install tushare',
+                            indicators: '股票日线（含复权）、指数成分、上市公司基本面、宏观数据（利率/汇率/CPI）',
+                            pitfall: '高级积分接口（财务三表、IPO 数据）需要积分，新账户免费期拿满 100 积分；研究型账户可申请教师认证 2000+ 积分。'
+                        },
+                        {
+                            name: '巨潮资讯网', url: 'http://www.cninfo.com.cn',
+                            content: '上市公司年报/季报/公告全文',
+                            freq: '按披露',
+                            how: '可批量下载 XBRL 结构化财务数据',
+                            indicators: '所有 A 股年报/季报/重大事项公告全文、信息披露公告',
+                            pitfall: '新上市公司偶尔会修改历史数据，时间序列研究要确认披露日期；XBRL 文件需要 XBRL 解析库解析。'
+                        },
+                        {
+                            name: '中国债券信息网 / 外汇交易中心', url: 'https://www.chinabond.com.cn',
+                            content: '国债收益率曲线、债券指数 / 人民币汇率中间价、SHIBOR',
+                            freq: '日度',
+                            how: '官网数据栏目直接下载',
+                            indicators: '国债收益率曲线（日度）、各类债券指数、人民币兑主要货币中间价、SHIBOR（隔夜/7天/30天/90天）',
+                            pitfall: '债券行情区分"全价/净价/到期收益率"三种数据，研究利率传导一般用到期收益率。'
+                        }
                     ]
                 },
                 {
@@ -353,10 +600,52 @@ const stages = {
                     id: 'intl', label: '国际数据', icon: '🌍',
                     tip: '跨国比较研究的首选，全部免费、支持批量下载。',
                     sources: [
-                        { name: '世界银行 WDI', url: 'https://data.worldbank.org', content: '全球各国 GDP、人口、贸易等宏观指标', freq: '年度', how: '在线筛选 → 批量下载 / 支持 API' },
+                        {
+                            name: '世界银行 WDI', url: 'https://data.worldbank.org',
+                            content: '全球各国 GDP、人口、贸易等宏观指标',
+                            freq: '年度',
+                            how: '在线筛选 → 批量下载 / 支持 API',
+                            steps: [
+                                { act: '打开 WDI →「Indicators」',
+                                  where: 'data.worldbank.org → 主页 → Indicators',
+                                  find: '每个指标有 5 大类：经济（Economy）、教育、环境、金融、人',
+                                  why: '做跨国比较研究选 WDI 是因为它覆盖国家最多（200+）且口径一致' },
+                                { act: '搜索指标（如 GDP per capita，指标代码 NY.GDP.PCAP.KD）',
+                                  where: '页面中部搜索框',
+                                  find: '指标代码 NY.GDP.PCAP.KD = 人均 GDP（不变价美元）',
+                                  why: 'WDI 指标代码是国际通用，建议论文里同时给中文名+英文代码' },
+                                { act: '下载 CSV / 用 API 批量取',
+                                  where: '页面右上角 → Download → CSV / API',
+                                  find: 'API 文档：https://datahelpdesk.worldbank.org/knowledgebase/articles/898581',
+                                  why: '研究 50+ 国家的论文必须用 API 批量取数' }
+                            ],
+                            indicators: 'GDP（人均/总量，现价/不变价）、人口、城市化率、贸易/GDP、CO2 排放、用电普及率、互联网普及率',
+                            pitfall: 'WDI 数据有大量"估计值"，引用前看具体后缀；同时要做缺失补全——低收入国家老数据空缺严重。'
+                        },
                         { name: 'IMF', url: 'https://www.imf.org', content: '国际金融统计 IFS、世界经济展望 WEO', freq: '月度/年度', how: '官网 Data 栏目' },
                         { name: 'OECD', url: 'https://data.oecd.org', content: '发达国家经济社会环境指标', freq: '多频度', how: '按主题、国家筛选后导出' },
-                        { name: 'UN Comtrade', url: 'https://comtrade.un.org', content: '国际贸易明细（按 HS 编码/国别）', freq: '年度/月度', how: '官网检索或 API（海关细粒度数据在此获取）' },
+                        {
+                            name: 'UN Comtrade', url: 'https://comtrade.un.org',
+                            content: '国际贸易明细（按 HS 编码/国别）',
+                            freq: '年度/月度',
+                            how: '官网检索或 API（海关细粒度数据在此获取）',
+                            steps: [
+                                { act: '进入 Comtrade →「Data Explorer」',
+                                  where: 'https://comtrade.un.org/data/',
+                                  find: 'Reporter（申报国） / Partner（贸易伙伴） / HS 编码 / Year',
+                                  why: 'Comtrade 是国际最权威的全球贸易数据库，覆盖 200+ 报告国' },
+                                { act: '选定 HS 编码（4 位/6 位）和年份范围',
+                                  where: '查询页面',
+                                  find: 'HS 2/4/6 位编码粒度越高，数据可得性越差',
+                                  why: '研究贸易协定/反倾销议题常用 HS 6 位粒度，研究宏观贸易用 HS 2 位即可' },
+                                { act: '勾选「Annual」或「Monthly」',
+                                  where: 'Period 选项',
+                                  find: 'Monthly 数据经常延迟 6-8 个月',
+                                  why: '做实时贸易研究建议用抽样的 12 个主要报告国月度数据' }
+                            ],
+                            indicators: '按 HS 分类进出口（按金额/数量）、按贸易伙伴进出口、贸易差额、运输方式细分',
+                            pitfall: '同一商品不同年度 HS 编码会调整，做时间序列要 hs_align 匹配；金额数据多为美元，部分国家以本币报告需换算。'
+                        },
                         { name: 'Google Dataset Search', url: 'https://datasetsearch.research.google.com', content: '跨平台数据集搜索引擎', freq: '—', how: '输入变量关键词检索已有数据集' }
                     ]
                 },
@@ -364,7 +653,28 @@ const stages = {
                     id: 'micro', label: '微观调查数据', icon: '👥',
                     tip: '研究个体/家庭行为时使用，官网申请（学术用途免费），审核需时日，尽早申请。',
                     sources: [
-                        { name: 'CFPS 中国家庭追踪调查', url: 'https://www.isss.pku.edu.cn/cfps/', content: '家庭收入消费、教育、健康、代际关系（个体面板）', freq: '两年一轮', how: '官网注册 → 学术用途申请 → 审核通过后下载' },
+                        {
+                            name: 'CFPS 中国家庭追踪调查', url: 'https://www.isss.pku.edu.cn/cfps/',
+                            content: '家庭收入消费、教育、健康、代际关系（个体面板）',
+                            freq: '两年一轮',
+                            how: '官网注册 → 学术用途申请 → 审核通过后下载',
+                            steps: [
+                                { act: '进入 CFPS 官网 →「数据申请」',
+                                  where: 'isss.pku.edu.cn/cfps/ → 数据申请',
+                                  find: '「数据申请流程」页 → 注册账号（学术用途）',
+                                  why: 'CFPS 个体面板是国内最权威的家庭调查之一，2024 年发布第 6 轮（2022 年样本）' },
+                                { act: '登录 → 选择研究项目 → 签署使用协议',
+                                  where: '后台「我的项目」',
+                                  find: '需填：①研究主题 ②变量使用范围 ③使用期限',
+                                  why: 'CFPS 采用"数据使用承诺制"——必须描述研究项目才能批准' },
+                                { act: '审核通过后下载（通常 3-15 个工作日）',
+                                  where: '邮件通知 / 后台通知',
+                                  find: '数据文件按轮次发布，需用 CFPS 提供的 Stata 加密格式',
+                                  why: 'CFPS 用专属加密 Stata 数据，要用「CFPS 数据处理工具」打开' }
+                            ],
+                            indicators: '家庭收入消费、家庭金融资产、儿童教育投入、健康与医疗支出、社会态度认知、家暴与代际转移、五等分家庭收入',
+                            pitfall: '①抽样权重必须用——CFPS 是复杂抽样设计；②跨轮比较须用 CFPS 提供的「跨轮 ID 匹配」表；③ 学术伦理：个体数据不可被识别，需签署保密协议。'
+                        },
                         { name: 'CGSS 中国综合社会调查', url: 'http://cgss.ruc.edu.cn', content: '社会态度、就业、价值观（横截面）', freq: '年度', how: '中国调查数据网申请下载' },
                         { name: 'CHFS 中国家庭金融调查', url: 'https://chfs.swufe.edu.cn', content: '家庭资产负债、信贷、保险', freq: '两年一轮', how: '西南财经大学官网申请' },
                         { name: '企查查 / 天眼查', url: 'https://www.qcc.com', content: '企业工商信息、股权结构、融资记录、知识产权', freq: '实时', how: '基础信息免费；深度数据需付费，建议用官方 API' },
@@ -835,6 +1145,19 @@ async function renderStage(stageNum) {
     const stage = stages[stageNum];
     const prog = state.progress[stageNum];
 
+    // ★ 高手档工具模式：所有研究阶段都直接呈现专业工具，不走 Q&A
+    const lv = currentLevel();
+    if (lv === 'advanced' && stage && stage.type !== 'ai_chat') {
+        // 数据获取阶段在 advanced 模式也走工具版（更详尽的可执行步骤）
+        $('stageLinkDisplay').textContent = `${location.origin}${location.pathname}#stage${stageNum}`;
+        if (!prog.startTime) prog.startTime = Date.now();
+        prog.lastAccess = Date.now();
+        saveState();
+        resetAIChatForStage(stageNum);
+        renderProToolStage(stageNum);
+        return;
+    }
+
     // 阶段五（论文设计）走专用 AI 渲染
     if (stage && stage.type === 'ai_chat') {
         $('stageLinkDisplay').textContent = `${location.origin}${location.pathname}#stage${stageNum}`;
@@ -910,6 +1233,564 @@ async function renderStage(stageNum) {
     }
 }
 
+// ===== PRO 工具 · 阶段一：辅助函数 =====
+function runPro1Generate() {
+    const O = $('pro1Obj')?.value.trim() || 'XXX';
+    const Y = $('pro1Y')?.value.trim() || 'YYY';
+    const lens = $('pro1Lens')?.value;
+    const map = {
+        causal: ['因果', 'X 是否构成 Y 的原因 / 处理效应', '<strong>反事实框架</strong>'],
+        effect: ['效应大小', 'X 对 Y 的影响量级（百分点 / 弹性）', '<strong>弹性解释</strong>'],
+        mech: ['机制', 'X 通过什么中间渠道影响 Y', '<strong>中介效应检验</strong>'],
+        heterogeneity: ['异质性', 'X 对 Y 的影响在不同子样本的差异', '<strong>分组回归</strong>']
+    };
+    const [_, __, framework] = map[lens];
+    const yShort = Y.replace(/^[a-z]+\((.+)\)$/i, '$1').slice(0, 8);
+    const templates = [
+        `<strong>「${O}是否促进了${Y}？」</strong> — 视角：${framework}，估计 X 的处理效应。需要固定效应 + 聚类稳健标准误。`,
+        `<strong>「${O}对${Y}的影响有多大？」</strong> — 估计 β₁ 并报告经济显著性（基准值 × 100% 量级）。`,
+        `<strong>「${O}的影响是否存在异质性？按东中西部 / 城乡 / 行业分组」</strong> — 重点考察分组回归系数差异。`
+    ];
+    $('pro1Out').innerHTML = `
+        <div class="pro-tool-out-title">📝 3 条候选研究问题（按推荐度排序）</div>
+        <ol class="pro-tool-out-list">
+            ${templates.map(t => `<li>${t}</li>`).join('')}
+        </ol>
+        <div class="pro-tool-out-foot">下一步：进入 <strong>研究问题模板</strong>填写 Y / X；进入 <strong>变量定义模板</strong>确认衡量方式与数据源；进入 <strong>模型公式</strong>得到回归方程。</div>
+    `;
+}
+
+function updatePro1Formula() {
+    const type = $('pro1ModelType')?.value || 'ols';
+    const hasI = $('pro1Interact')?.checked;
+    const iTerm = hasI ? ' + β₃X×M' : '';
+    const formulas = {
+        ols:     `Y<sub>i,t</sub> = β₀ + β₁X<sub>i,t</sub>${iTerm} + γ·Controls<sub>i,t</sub> + ε<sub>i,t</sub>`,
+        fe:      `Y<sub>i,t</sub> = α<sub>i</sub> + λ<sub>t</sub> + β₁X<sub>i,t</sub>${iTerm} + γ·Controls<sub>i,t</sub> + ε<sub>i,t</sub>`,
+        did:     `Y<sub>i,t</sub> = β₀ + β₁(Treat<sub>i</sub>×Post<sub>t</sub>)${iTerm} + α<sub>i</sub> + λ<sub>t</sub> + γ·Controls<sub>i,t</sub> + ε<sub>i,t</sub>`,
+        iv:      `一阶段：X<sub>i,t</sub> = π₀ + π₁Z<sub>i,t</sub> + π₂·Controls + ν<sub>i,t</sub>\n二阶段：Y<sub>i,t</sub> = β₀ + β₁X̂<sub>i,t</sub>${iTerm} + γ·Controls + ε<sub>i,t</sub>  （β₁ 即 IV 估计量）`,
+        gmm:     `Y<sub>i,t</sub> = β₀ + β₁Y<sub>i,t-1</sub> + β₂X<sub>i,t</sub>${iTerm} + γ·Controls<sub>i,t</sub> + α<sub>i</sub> + λ<sub>t</sub> + ε<sub>i,t</sub>\n（系统 GMM，工具变量为 Y 的滞后项，使用 xtabond2）`
+    };
+    const fEl = $('pro1Formula');
+    if (fEl) fEl.innerHTML = (formulas[type] || '').replace(/\n/g, '<br>');
+}
+
+function copyFormula() {
+    const txt = $('pro1Formula')?.textContent || '';
+    if (!txt) return;
+    navigator.clipboard?.writeText(txt);
+    showToast('已复制 LaTeX 公式到剪贴板', 'success');
+}
+
+// ===== PRO 工具 · 阶段二：辅助函数（取数代码生成） =====
+function generateAkShareCode() {
+    const t = $('pro2DataType')?.value;
+    const presets = {
+        macro: `# -*- coding: utf-8 -*-
+import akshare as ak
+import pandas as pd
+
+# 中国宏观数据：GDP/CPI/M2 等
+# 详见 https://akshare.akfamily.xyz/data/macro/macro.html
+gdp_df = ak.macro_china_gdp()
+print(gdp_df.head())
+gdp_df.to_csv('gdp_quarterly.csv', index=False)
+
+# CPI 月度
+cpi_df = ak.macro_china_cpi()
+print(cpi_df.tail())
+`,
+        stock: `# -*- coding: utf-8 -*-
+import akshare as ak
+df = ak.stock_zh_a_hist(symbol="000001", period="daily",
+                         start_date="20150101", end_date="20251231", adjust="qfq")
+print(df.head())
+df.to_csv('stock_000001.csv', index=False)
+`,
+        futures: `import akshare as ak
+df = ak.futures_main_sina(symbol="CU0")  # 沪铜主力
+print(df.tail())
+`,
+        fund: `import akshare as ak
+df = ak.fund_open_fund_info_em(fund="000001", indicator="单位净值")
+print(df.tail())
+`,
+        exchange: `import akshare as ak
+# 人民币兑美元中间价
+df = ak.fx_spot_quote()
+print(df.tail())
+# SHIBOR
+sh = ak.rate_interbank_shanghai_indicator()
+print(sh.tail())
+`
+    };
+    $('pro2Code').textContent = presets[t] || '请先选择数据类型';
+}
+function generateStataCode() {
+    const s = $('pro2StataSrc')?.value;
+    const presets = {
+        csmar: `* ===========================================
+ * CSMAR CSV 文件读取（典型中文编码 GBK → UTF-8）
+ * ===========================================
+cd "D:/myproject/data"
+
+* 步骤 1：读取（注意 CSMAR 默认编码 GBK，可加 encoding 选项）
+import delimited "firm_finance_2020.csv", clear encoding("utf-8")
+
+* 步骤 2：清洗
+destring total_asset, replace force
+gen ln_asset = ln(total_asset)
+gen year = year(date)
+
+* 步骤 3：保存为 Stata 格式
+save "firm_finance_clean.dta", replace
+
+* 步骤 4：批量合并多年面板（forvalues）
+forvalues y = 2015/2024 {
+    import delimited "firm_finance_y.csv", clear encoding("utf-8")
+    destring total_asset, replace force
+    gen ln_asset = ln(total_asset)
+    append using "firm_finance_clean.dta", force
+    save "firm_finance_clean.dta", replace
+}
+`,
+        stats: `* 国家统计局 Excel 文件读取
+import excel "gdp_quarterly.xlsx", sheet("Sheet1") firstrow clear
+
+* 透视：长格式
+reshape long gdp, i(quarter) j(indicator)
+
+* 转数值并取对数
+destring gdp, replace force
+gen lngdp = ln(gdp)
+save "gdp.dta", replace
+`,
+        wind: `* Wind 导出 CSV（UTF-8 编码）
+import delimited "wind_export.csv", clear
+
+* 合并代码转换（股票代码首列）
+replace stkcd = "0" + stkcd if length(stkcd) == 5
+
+* 排序保存
+sort stkcd year month
+save "wind_panel.dta", replace
+`,
+        tushare: `* Tushare API（先在 Python 取数后传给 Stata）
+shell:
+pip install tushare pandas
+python3 get_data.py
+
+* 然后导入 Python 生成的 CSV
+import delimited "panel_from_tushare.csv", clear
+`
+    };
+    $('pro2StataCode').textContent = presets[s] || '请先选择数据源';
+}
+function generateIntlCode() {
+    const s = $('pro2IntlSrc')?.value;
+    const presets = {
+        wdi: `# World Bank WDI（直接 pip 安装 wbdata 或用 pandas_datareader）
+import pandas_datareader.wb as wb
+df = wb.download(indicator='NY.GDP.PCAP.KD', country=['CN','US','JP'], start=2000, end=2024)
+df.reset_index().to_csv('wdi_gdp_pc.csv', index=False)
+`,
+        imf: `from pandas_datareader import data as pdr
+# IMF 国际金融统计（需要 pandas_datareader ≥ 0.10）
+df = pdr.DataReader('NGDP_RPCH', 'imf', 2000, 2024)
+df.to_csv('imf_gdp_growth.csv')
+`,
+        oecd: `from pandas_datareader import data as pdr
+df = pdr.DataReader('GDP', 'oecd', 2000, 2024)
+df.to_csv('oecd_gdp.csv')
+`,
+        comtrade: `# UN Comtrade（免费 API）
+import requests, pandas as pd
+url = "https://comtradeapi.un.org/data/v1/get"
+params = {"re":"156", "ps":"2023", "cmd":"HS", "freq":"A", "px":"HS",
+          "r":"all", "p":"0", "rg":"all", "cc":"TOTAL", "fmt":"json"}
+r = requests.get(url, params=params).json()
+df = pd.DataFrame(r['data'])
+df.to_csv('comtrade_export_2023.csv', index=False)
+`
+    };
+    $('pro2IntlCode').textContent = presets[s] || '请先选择数据源';
+}
+
+// ===== PRO 工具 · 阶段三：CSV 清洗 =====
+let _ptRows = null;          // 当前清洗后的数据（二维数组）
+let _ptHistory = [];         // 操作历史
+let _ptFreqCols = [];        // 频度对齐候选列（数值）
+let _ptMissingCols = [];     // 缺失候选列
+let _ptLogCols = [];         // 对数化候选列（正值）
+
+// 简易 CSV 解析（支持引号转义、最多 5000 行）
+function parseCSV(text, delimiter) {
+    delimiter = delimiter || (text.indexOf('\t') >= 0 && text.indexOf(',') < 0 ? '\t' : ',');
+    const rows = [];
+    let i = 0, field = '', row = [], inQuote = false;
+    while (i < text.length && rows.length < 5001) {
+        const ch = text[i];
+        if (inQuote) {
+            if (ch === '"') {
+                if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+                inQuote = false; i++; continue;
+            }
+            field += ch; i++;
+        } else {
+            if (ch === '"') { inQuote = true; i++; continue; }
+            if (ch === delimiter) { row.push(field); field = ''; i++; continue; }
+            if (ch === '\n' || ch === '\r') {
+                if (field !== '' || row.length) { row.push(field); rows.push(row); field = ''; row = []; }
+                if (ch === '\r' && text[i+1] === '\n') i++;
+                i++; continue;
+            }
+            field += ch; i++;
+        }
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows;
+}
+
+function loadProSampleData(ev) {
+    ev?.stopPropagation?.();
+    // 30 行月度面板，含故意缺失值（用于演示完整清洗链路）
+    const sample = `year,month,gdp_idx,cpi,m2,retail\n2018,1,100.0,101.5,168.1,3758\n2018,2,99.6,101.8,167.9,\n2018,3,100.3,102.1,170.2,3782\n2018,4,,101.8,169.4,3801\n2018,5,101.2,101.6,170.3,3854\n2018,6,101.5,101.7,171.0,3892\n2018,7,102.1,102.0,170.8,3921\n2018,8,102.3,,171.2,3944\n2018,9,102.7,102.4,171.8,3968\n2018,10,103.0,102.5,171.9,3981\n2018,11,103.2,102.3,171.5,\n2018,12,103.4,102.1,171.6,4012\n2019,1,103.8,102.0,172.1,4033\n2019,2,104.0,101.9,172.3,4065\n2019,3,104.5,,172.8,4098\n2019,4,104.6,102.1,173.1,4110\n2019,5,105.1,102.3,173.5,4132\n2019,6,105.3,102.5,174.0,4151\n2019,7,105.6,102.6,173.8,4170\n2019,8,106.0,102.7,174.2,4188\n2019,9,106.1,102.9,174.5,4210\n2019,10,106.5,103.1,174.8,4228\n2019,11,107.0,103.3,175.0,4240\n2019,12,107.3,103.4,175.3,4261\n2020,1,107.5,103.6,175.8,4275\n2020,2,,103.9,176.2,4288\n2020,3,107.9,104.2,176.5,4295\n2020,4,108.0,104.5,177.0,4302\n2020,5,108.4,104.7,177.3,4320\n2020,6,108.6,,177.8,4340\n`;
+    handleCsvText('（示例数据）月度面板 30 行', sample);
+}
+
+function handleCsvText(name, text) {
+    const rows = parseCSV(text);
+    if (rows.length < 2) { showToast('CSV 为空或无法解析', 'error'); return; }
+    _ptRows = rows;
+    _ptHistory = [];
+    addPtHistory(`加载数据：${name}，${rows.length - 1} 行 × ${rows[0].length} 列`);
+    renderPtPreview();
+    setupDragDrop();
+    showPtSteps(2);
+    bindPtSelects();
+}
+
+function renderPtPreview() {
+    const head = _ptRows[0];
+    const data = _ptRows.slice(1, 6);
+    const missingByCol = head.map((_, ci) => {
+        let missing = 0;
+        for (let r = 1; r < _ptRows.length; r++) {
+            const v = _ptRows[r][ci];
+            if (v === undefined || v === null || v === '' || v === 'NaN') missing++;
+        }
+        return missing;
+    });
+    const html = `<table class="pt-table">
+        <thead><tr>${head.map((h, i) => `<th>${h}${missingByCol[i] ? ` <span style="color:#e74c3c">(${missingByCol[i]} 缺失)</span>` : ''}</th>`).join('')}</tr></thead>
+        <tbody>${data.map(r => `<tr>${r.map((c, i) => {
+            const miss = c === undefined || c === null || c === '' || c === 'NaN';
+            return `<td>${miss ? '<span class="pt-cell-missing">空缺</span>' : escapeHtml(c)}</td>`;
+        }).join('')}</tr>`).join('')}</tbody>
+    </table>`;
+    $('ptPreview').innerHTML = html;
+    $('ptMeta').innerHTML = `共 <strong>${_ptRows.length - 1}</strong> 行 × <strong>${_ptRows[0].length}</strong> 列；
+        ${missingByCol.filter(x => x).length} 列含缺失值，总缺失 <strong>${missingByCol.reduce((a,b)=>a+b,0)}</strong> 个`;
+}
+
+function bindPtSelects() {
+    if (!_ptRows) return;
+    const head = _ptRows[0];
+    _ptFreqCols = []; _ptMissingCols = []; _ptLogCols = [];
+    for (let ci = 1; ci < head.length; ci++) {
+        const vals = [];
+        for (let r = 1; r < _ptRows.length; r++) {
+            const v = parseFloat(_ptRows[r][ci]);
+            if (!isNaN(v)) vals.push(v);
+        }
+        if (vals.length >= 3) _ptFreqCols.push({ ci, name: head[ci] });
+    }
+    for (let ci = 1; ci < head.length; ci++) {
+        let hasMiss = false;
+        for (let r = 1; r < _ptRows.length; r++) {
+            const v = _ptRows[r][ci];
+            if (v === undefined || v === null || v === '' || v === 'NaN') { hasMiss = true; break; }
+        }
+        if (hasMiss) _ptMissingCols.push({ ci, name: head[ci] });
+    }
+    for (let ci = 1; ci < head.length; ci++) {
+        const vals = [];
+        for (let r = 1; r < _ptRows.length; r++) {
+            const v = parseFloat(_ptRows[r][ci]);
+            if (!isNaN(v)) vals.push(v);
+        }
+        if (vals.length >= 3 && vals.every(v => v > 0)) _ptLogCols.push({ ci, name: head[ci] });
+    }
+    const opt = (cols, idx) => cols.map(c => `<option value="${c.ci}">${c.name}</option>`).join('');
+    if ($('ptFreqCols')) $('ptFreqCols').innerHTML = opt(_ptFreqCols);
+    if ($('ptMissingCols')) $('ptMissingCols').innerHTML = opt(_ptMissingCols);
+    if ($('ptLogCols')) $('ptLogCols').innerHTML = opt(_ptLogCols);
+}
+
+function showPtSteps(from) {
+    const steps = ['ptPreviewStep','ptFreqStep','ptMissingStep','ptLogStep','ptExportStep'];
+    for (let i = 0; i < steps.length; i++) {
+        const el = $(steps[i]); if (!el) continue;
+        const stepN = i + 2;     // 步骤 2-6
+        if (stepN >= from) el.hidden = false;
+    }
+    if (from >= 7 && $('proStage3Finish')) $('proStage3Finish').hidden = false;
+}
+
+function setupDragDrop() {
+    const z = $('ptUploadZone');
+    if (!z) return;
+    ['dragenter','dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.remove('drag'); }));
+    z.addEventListener('drop', e => {
+        const f = e.dataTransfer.files?.[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => handleCsvText(f.name, r.result);
+        r.readAsText(f);
+    });
+    $('ptFileInput').onchange = e => {
+        const f = e.target.files?.[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = () => handleCsvText(f.name, r.result);
+        r.readAsText(f);
+    };
+}
+
+function doFreqAlign() {
+    if (!_ptRows) return;
+    const target = $('ptFreqTarget').value;        // quarter / year / year-end
+    const selIdx = Array.from($('ptFreqCols').selectedOptions).map(o => parseInt(o.value));
+    if (!selIdx.length) { showToast('请选择至少一列', 'error'); return; }
+    const head = _ptRows[0];
+    const data = _ptRows.slice(1);
+    if (!head.includes('year') || !head.includes('month')) {
+        showToast('需有 year/month 列才能频度对齐', 'error'); return;
+    }
+    const yi = head.indexOf('year'), mi = head.indexOf('month');
+    const grouped = {};
+    for (const r of data) {
+        const yr = parseInt(r[yi]); const mo = parseInt(r[mi]);
+        if (isNaN(yr) || isNaN(mo)) continue;
+        const key = target === 'year' ? `${yr}` : `${yr}-${Math.floor((mo - 1) / 3) + 1}`;
+        (grouped[key] = grouped[key] || []).push(r);
+    }
+    const sortedKeys = Object.keys(grouped).sort();
+    const newHead = head.slice();
+    const newRows = sortedKeys.map(k => { const g = grouped[k]; const first = g[0]; const out = first.slice(); out[yi] = k.split('-')[0]; out[mi] = target === 'year' ? '' : k.split('-')[1]; for (const ci of selIdx) { const vals = g.map(r => parseFloat(r[ci])).filter(v => !isNaN(v)); if (!vals.length) continue; if (target === 'year-end') { out[ci] = String(vals[vals.length - 1]); } else { out[ci] = String(vals.reduce((a,b)=>a+b,0) / vals.length); } } return out; });
+    _ptRows = [newHead, ...newRows];
+    addPtHistory(`频度对齐 → ${target}（${sortedKeys.length} 期）`);
+    renderPtPreview(); bindPtSelects(); showPtSteps(4);
+}
+
+function doMissing() {
+    if (!_ptRows) return;
+    const method = $('ptMissingMethod').value;
+    const selIdx = Array.from($('ptMissingCols').selectedOptions).map(o => parseInt(o.value));
+    if (!selIdx.length) { showToast('请选择至少一列', 'error'); return; }
+    let filled = 0;
+    for (const ci of selIdx) {
+        const col = _ptRows.slice(1).map(r => parseFloat(r[ci]));
+        if (method === 'drop') {
+            _ptRows = [_ptRows[0], ..._ptRows.slice(1).filter((r, i) => !isNaN(col[i]))];
+            filled += col.filter(isNaN).length; continue;
+        }
+        for (let i = 0; i < col.length; i++) {
+            if (!isNaN(col[i])) continue;
+            let v = NaN;
+            if (method === 'linear') { let p = NaN, n = NaN; for (let k = 0; k < i; k++) if (!isNaN(col[k])) p = col[k]; for (let k = i + 1; k < col.length; k++) if (!isNaN(col[k])) { n = col[k]; break; } v = isNaN(p) || isNaN(n) ? p : (p + n) / 2; }
+            else if (method === 'ffill') { for (let k = i - 1; k >= 0; k--) if (!isNaN(col[k])) { v = col[k]; break; } }
+            else if (method === 'bfill') { for (let k = i + 1; k < col.length; k++) if (!isNaN(col[k])) { v = col[k]; break; } }
+            else if (method === 'mean') { v = col.filter(x => !isNaN(x)).reduce((a,b)=>a+b,0) / col.filter(x => !isNaN(x)).length; }
+            if (!isNaN(v)) { col[i] = v; _ptRows[i + 1][ci] = String(v); filled++; }
+        }
+    }
+    addPtHistory(`缺失值处理：${method}（${filled} 个填充）`);
+    renderPtPreview(); bindPtSelects(); showPtSteps(5);
+    showMissingSummary(selIdx);
+}
+
+function showMissingSummary(selIdx) {
+    const head = _ptRows[0];
+    const html = selIdx.map(ci => {
+        let missing = 0;
+        for (let r = 1; r < _ptRows.length; r++) if (!_ptRows[r][ci] || _ptRows[r][ci] === 'NaN') missing++;
+        return missing;
+    }).reduce((a,b)=>a+b,0);
+    $('ptMissingSummary').innerHTML = html === 0
+        ? `<span class="pt-missing-ok">✓ 选中列缺失值已全部处理</span>`
+        : `<div>处理后剩余缺失：<strong>${html}</strong> 个</div>`;
+}
+
+function doLogTransform() {
+    if (!_ptRows) return;
+    const selIdx = Array.from($('ptLogCols').selectedOptions).map(o => parseInt(o.value));
+    if (!selIdx.length) { showToast('请选择至少一列', 'error'); return; }
+    const head = _ptRows[0];
+    let added = 0;
+    for (const ci of [...selIdx].sort((a,b)=>b-a)) {
+        const colName = 'ln_' + head[ci];
+        head.splice(ci + 1, 0, colName);
+        for (let r = 1; r < _ptRows.length; r++) {
+            const v = parseFloat(_ptRows[r][ci]);
+            _ptRows[r].splice(ci + 1, 0, v > 0 ? String(Math.log(v).toFixed(6)) : '');
+        }
+        added++;
+    }
+    addPtHistory(`对数化：新增 ${added} 个 ln_ 列`);
+    renderPtPreview(); bindPtSelects(); showPtSteps(6);
+    renderPtHistory();
+}
+
+function addPtHistory(desc) {
+    _ptHistory.push({ ts: new Date().toLocaleTimeString('zh-CN', { hour12: false }), desc });
+    renderPtHistory();
+    if ($('ptExportStep')) $('ptExportStep').hidden = false;
+    if ($('proStage3Finish')) $('proStage3Finish').hidden = false;
+}
+
+function renderPtHistory() {
+    const el = $('ptHistory');
+    if (!el) return;
+    if (!_ptHistory.length) { el.innerHTML = '<div class="pt-history-empty">尚无操作</div>'; return; }
+    el.innerHTML = _ptHistory.map((h, i) => `
+        <div class="pt-history-item"><span class="pt-history-ts">${h.ts}</span>
+            <span class="pt-history-desc">${i + 1}. ${h.desc}</span>
+        </div>
+    `).join('');
+}
+
+function exportCleanedCSV() {
+    if (!_ptRows) return;
+    const text = _ptRows.map(r => r.map(c => /[",\n]/.test(c || '') ? `"${(c||'').replace(/"/g,'""')}"` : c).join(',')).join('\n');
+    const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `cleaned_${Date.now()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ===== PRO 工具 · 阶段四：辅助函数 =====
+function renderPro4Code() {
+    const Y = $('pro4Y')?.value.trim() || 'Y';
+    const X = $('pro4X')?.value.trim() || 'X';
+    const C = $('pro4C')?.value.trim() || '';
+    const fe = $('pro4FE')?.checked;
+    const cl = $('pro4Cluster')?.value || 'none';
+    const lang = $('pro4Lang')?.value || 'stata';
+    const feTerm = fe ? ' i.year' : '';
+    const fePanel = fe ? ', absorb(id)' : '';
+    const clStata = { none: '', id: ', vce(cluster id)', time: ', vce(cluster year)', id_time: ', vce(cluster id year)' }[cl];
+    const clR = { none: '~', id: '~id', time: '~year', id_time: '~id+year' }[cl];
+    const clPy = { none: 'OLS', id: 'ClusteredDataPoints(cov_type="clustered", cluster_entity=True)', time: 'ClusteredDataPoints(cov_type="clustered", cluster_time=True)', id_time: 'ClusteredDataPoints(cov_type="clustered", cluster_entity=True, cluster_time=True)' }[cl];
+    const cTrim = C.replace(/\s+/g, ' ').trim();
+    let code = '';
+    if (lang === 'stata') {
+        code = `* Stata OLS / FE 回归
+reg ${Y} ${X} ${cTrim}${feTerm}, ${clStata.replace(/^, /,'')}\n
+eststo m1\n
+* 双向固定效应版
+xtset id year
+xtreg ${Y} ${X} ${cTrim}${feTerm}, fe ${clStata.replace(/^, /,'')}\n
+eststo m2\n
+esttab m1 m2 using "results.rtf", se star(* 0.1 ** 0.05 *** 0.01) ar2(%9.3f) replace`;
+    } else if (lang === 'r') {
+        code = `# R (fixest 包)
+library(fixest)
+reg1 = feols(${Y} ~ ${X} ${cTrim} | ${fe ? 'id + year' : '1'} ${cl ? '| ' + clR[cl] : ''}, data = df)
+summary(reg1)
+# 双向固定效应版
+reg2 = feols(${Y} ~ ${X} ${cTrim} | id + year${cl ? ' | ' + clR[cl] : ''}, data = df)
+etable(reg1, reg2, se = TRUE)`;
+    } else {
+        code = `# Python (linearmodels)
+from linearmodels.panel import PanelOLS
+import pandas as pd
+df = pd.read_csv("your_data.csv").set_index(["id","year"])
+mod = PanelOLS.from_formula("${Y} ~ 1 + ${X} ${cTrim} ${fe ? '+ EntityEffects + TimeEffects' : ''}".replace('1 + 1','1'), data=df)
+res = mod.fit(cov_type='${clPy}')
+print(res.summary)`;
+    }
+    $('pro4Code').textContent = code;
+}
+
+function renderPro4Endog() {
+    const active = document.querySelector('.pro-endog-tab.active')?.dataset.et || 'did';
+    const presets = {
+        did: `* ====== 双重差分 DID ======
+* 政策处理：DID = Treat × Post
+gen did = treat * post
+
+* 1) 平行趋势检验（必需！）
+forvalues t = -5/5 {
+    gen pre_t = (year_diff == t)
+    reg Y pre_* treat controls, cluster(id)
+}
+
+* 2) 估计 DID
+reg Y did controls i.year i.id, cluster(id)
+eststo m1
+
+* 3) 事件研究法（更稳健）
+reghdfe Y did_5 did_4 did_3 did_2 post_2 post_3, absorb(id year) cluster(id)
+eststo m2`,
+        iv: `* ====== 工具变量 IV / 2SLS ======
+* 第一阶段：X = π0 + π1 Z + controls + ν
+reg X Z controls, cluster(id)
+predict X_hat, xb
+
+* 第二阶段：Y = β0 + β1 X_hat + controls + ε
+reg Y X_hat controls, cluster(id)
+
+* 或直接用 ivregress：
+ivregress 2sls Y controls (X = Z), cluster(id)
+estat firststage    // 第一阶段 F 统计量（≥10 才有效）
+estat overid        // 过度识别检验（恰好识别则跳过）`,
+        psm: `* ====== 倾向得分匹配 PSM ======
+* 1) 估计倾向得分
+psmodel, treat(X) covariates(controls) logit
+predict pscore, ps
+
+* 2) 最近邻匹配
+psmatch2 X, pscore(pscore) neighbor(1) caliper(0.05)
+
+* 3) 计算 ATT
+pstest controls, both treated
+* → 匹配后两组协变量应无显著差异`,
+        rdd: `* ====== 断点回归 RDD ======
+* 1) 局部线性回归 + 带宽选择
+rdd Y X, cutvalue(0) kernel(triangular) bwselect(mserd)
+
+* 2) 稳健性：换带宽 + 换核函数
+rdd Y X, cutvalue(0) kernel(uniform) h(0.5)
+rdd Y X, cutvalue(0) kernel(uniform) h(1.5)
+
+* 3) 协变量检验（操控变量在断点处不应有跳跃）
+rdd controls X, cutvalue(0) kernel(triangular)`
+    };
+    $('proEndogOut').textContent = presets[active] || '';
+}
+
+// 阶段四 内生性标签切换
+document.addEventListener('click', e => {
+    if (e.target.classList?.contains('pro-endog-tab')) {
+        document.querySelectorAll('.pro-endog-tab').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+    }
+});
+
+// ===== PRO 工具 · 在 init 时绑定 =====
+function bindProInit() {
+    setTimeout(() => {
+        updatePro1Formula();
+        if ($('ptFreqCols')) setupDragDrop();
+    }, 100);
+}
+
 // ====== 阶段二：数据源导航渲染（直接给出取数路径，不设问） ======
 function renderDataGuideStage(stageNum) {
     const stage = stages[stageNum];
@@ -937,6 +1818,23 @@ function renderDataGuideStage(stageNum) {
                             <span class="dg-meta-item"><strong>频度：</strong>${s.freq}</span>
                         </div>
                         <div class="dg-card-how"><strong>取数路径：</strong>${s.how}</div>
+                        ${s.steps ? `
+                        <details class="dg-steps">
+                            <summary>📋 分步操作指南（点哪里 / 找什么 / 为什么）</summary>
+                            <ol class="dg-step-list">
+                                ${s.steps.map(st => `
+                                    <li>
+                                        <div class="dg-step-act">▸ ${st.act}</div>
+                                        ${st.where ? `<div class="dg-step-where">📍 位置：${st.where}</div>` : ''}
+                                        ${st.find ? `<div class="dg-step-find">🔍 找什么：${st.find}</div>` : ''}
+                                        ${st.why ? `<div class="dg-step-why">💡 为什么：${st.why}</div>` : ''}
+                                    </li>
+                                `).join('')}
+                            </ol>
+                            ${s.indicators ? `<div class="dg-step-indicators"><strong>📊 常见指标举例：</strong>${s.indicators}</div>` : ''}
+                            ${s.pitfall ? `<div class="dg-step-pitfall"><strong>⚠️ 避坑：</strong>${s.pitfall}</div>` : ''}
+                        </details>
+                        ` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -1035,7 +1933,361 @@ function renderGuideCompletePanel(stageNum) {
     `;
 }
 
-// 完成阶段二（数据源导航模式）
+// ====== 高手档：每个研究阶段对应一套专业工具（不走 Q&A） ======
+function renderProToolStage(stageNum) {
+    const stage = stages[stageNum];
+    const prog = state.progress[stageNum];
+    const container = $('stageContainer');
+    const lvChip = `<div class="lv-chip-bar pro">
+        <span class="lv-badge pro">🎓 高手档 · PRO 工具模式</span>
+        <span class="lv-chip-tip">已跳过所有引导，直接呈现可用的专业工具。每张卡片均可独立使用，所有操作仅在本机完成。</span>
+    </div>`;
+
+    const summaryHtml = prog.completed ? getStageSummary(stageNum) : '';
+
+    let body = '';
+    if (stageNum === 1) body = renderProToolStage1();
+    else if (stageNum === 2) body = renderProToolStage2();
+    else if (stageNum === 3) body = renderProToolStage3();
+    else if (stageNum === 4) body = renderProToolStage4();
+    else body = `<div class="pro-tool-empty">该阶段暂未提供专业工具，请使用其他阶段。</div>`;
+
+    container.innerHTML = `
+        <div class="stage-header pro">
+            <div class="stage-tag pro">${stage.tag} · PRO</div>
+            <h2>${stage.title}<span class="stage-header-tag-pro">🔧 专业工具</span></h2>
+            <p class="stage-intro">${stage.intro}</p>
+        </div>
+        ${lvChip}
+        ${body}
+        <div id="dynamicArea"></div>
+        ${summaryHtml}
+    `;
+
+    // 初始化 PRO 工具交互
+    setTimeout(() => {
+        if (stageNum === 1) updatePro1Formula();
+        if (stageNum === 3) {
+            setupDragDrop();
+            // 初次进入 stage3 工具时，自动加载示例数据并展示完整 6 个步骤
+            loadProSampleData();
+        }
+    }, 50);
+}
+
+// ===== PRO · 阶段一（研究设计）工具 =====
+function renderProToolStage1() {
+    const rd = state.researchDesign;
+    return `
+        <div class="pro-tool-grid">
+            <!-- 工具 1：研究问题模板生成器 -->
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">🧩</span><div><div class="pro-tool-card-title">研究问题模板生成器</div><div class="pro-tool-card-sub">输入三要素，自动产出 3 条候选研究问题</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-op-row"><label>主题对象（O）</label><input type="text" class="pt-input" id="pro1Obj" placeholder="例如：数字普惠金融 / 某上市公司 / 长江经济带" value="${rd.varX || ''}"></div>
+                    <div class="pro-op-row"><label>目标变量（Y）</label><input type="text" class="pt-input" id="pro1Y" placeholder="例如：居民消费 / 企业全要素生产率 / 区域创新" value="${rd.varY || ''}"></div>
+                    <div class="pro-op-row"><label>研究视角</label>
+                        <select class="pt-select" id="pro1Lens">
+                            <option value="causal">因果影响</option>
+                            <option value="effect" selected>效应大小</option>
+                            <option value="mech">作用机制</option>
+                            <option value="heterogeneity">异质性</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary pro-tool-act" onclick="runPro1Generate()">▶ 生成 3 条研究问题</button>
+                    <div id="pro1Out" class="pro-tool-out"></div>
+                </div>
+            </div>
+
+            <!-- 工具 2：变量定义模板 -->
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">📋</span><div><div class="pro-tool-card-title">变量定义模板（X / Y / 控制变量）</div><div class="pro-tool-card-sub">三种取数维度（水平值 / 增长率 / 对数值）+ 数据源提示</div></div></div>
+                <div class="pro-tool-card-body">
+                    <table class="pro-vartbl">
+                        <thead><tr><th>角色</th><th>名称</th><th>衡量方式</th><th>数据源类别</th><th>建议频度</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="badge-y">Y</span></td><td><input type="text" class="pt-input" id="pro1VarY" placeholder="例如：居民消费水平" value="${rd.varY || ''}"></td>
+                                <td><select class="pt-select" id="pro1MeasY"><option>水平值</option><option selected>对数值</option><option>增长率(%)</option><option>比率</option></select></td>
+                                <td><select class="pt-select" id="pro1SrcY"><option value="macro">宏观（统计局/央行/海关）</option><option value="firm">企业（CSMAR/Wind）</option><option value="micro">微观（CFPS/CGSS）</option><option value="intl">国际（WDI/IMF）</option></select></td>
+                                <td><select class="pt-select" id="pro1FreqY"><option>月度</option><option selected>季度</option><option>年度</option><option>面板</option></select></td>
+                            </tr>
+                            <tr><td><span class="badge-x">X</span></td><td><input type="text" class="pt-input" id="pro1VarX" placeholder="核心解释变量" value="${rd.varX || ''}"></td>
+                                <td><select class="pt-select" id="pro1MeasX"><option>水平值</option><option>对数值</option><option selected>指数</option><option>虚拟(0/1)</option></select></td>
+                                <td><select class="pt-select" id="pro1SrcX"><option value="macro">宏观</option><option value="firm" selected>企业</option><option value="micro">微观</option><option value="intl">国际</option></select></td>
+                                <td><select class="pt-select" id="pro1FreqX"><option>月度</option><option selected>季度</option><option>年度</option><option>面板</option></select></td>
+                            </tr>
+                            <tr><td><span class="badge-c">C</span></td><td colspan="4"><input type="text" class="pt-input" id="pro1Controls" placeholder="控制变量（逗号分隔，例如：人均可支配收入、城镇化率、老龄化率）" value="${rd.controls || ''}"></td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pro-op-tip"><strong>💡 提示：</strong>Y 与 X 的频度必须一致，否则进入阶段三做频度对齐。控制变量含被遗漏变量（同时影响 Y 与 X）会引发内生性，必须先列出。</div>
+                </div>
+            </div>
+
+            <!-- 工具 3：模型设定公式生成 -->
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">📐</span><div><div class="pro-tool-card-title">模型设定公式生成器</div><div class="pro-tool-card-sub">一键产出 OLS / 固定效应 / DID / IV 回归方程</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-op-row"><label>模型类型</label>
+                        <select class="pt-select" id="pro1ModelType" onchange="updatePro1Formula()">
+                            <option value="ols" selected>OLS 多元回归</option>
+                            <option value="fe">固定效应 FE</option>
+                            <option value="did">双重差分 DID</option>
+                            <option value="iv">工具变量 IV / 2SLS</option>
+                            <option value="gmm">系统 GMM</option>
+                        </select>
+                    </div>
+                    <div class="pro-op-row"><label>是否含交互项</label><input type="checkbox" id="pro1Interact" onchange="updatePro1Formula()">  X × 调节变量</div>
+                    <pre id="pro1Formula" class="formula-block"></pre>
+                    <button class="btn-primary pro-tool-act" onclick="copyFormula()">📋 复制公式（LaTeX）</button>
+                    <div class="pro-op-tip"><strong>使用步骤：</strong>① 把上面的变量名替换成你自己的 X/Y/控制变量；② 进入阶段二获取数据；③ 进入阶段三清洗后进入阶段四回归。完整 OLS 代码生成器在阶段四。</div>
+                </div>
+            </div>
+        </div>
+        <button class="btn-primary btn-large pro-finish-btn" onclick="completeProStage(1)">✓ 标记研究设计已完成，进入阶段二</button>
+    `;
+}
+
+// ===== PRO · 阶段二（数据获取）工具 =====
+function renderProToolStage2() {
+    return `
+        <div class="pro-tool-grid">
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">📊</span><div><div class="pro-tool-card-title">AKShare 一键取数模板（Python）</div><div class="pro-tool-card-sub">国内宏观/股票/期货的免费开源替代 Wind</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-op-row"><label>数据类型</label>
+                        <select class="pt-select" id="pro2DataType">
+                            <option value="macro">宏观数据</option>
+                            <option value="stock">A股股票日线</option>
+                            <option value="futures">期货数据</option>
+                            <option value="fund">基金净值</option>
+                            <option value="exchange">汇率/利率</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary pro-tool-act" onclick="generateAkShareCode()">▶ 生成取数代码</button>
+                    <pre id="pro2Code" class="code-block">点击上方按钮生成取数代码模板...</pre>
+                    <div class="pro-op-tip"><strong>使用前：</strong> <code>pip install akshare pandas</code>。详见 <a href="https://akshare.akfamily.xyz" target="_blank">akshare 官方文档</a>。</div>
+                </div>
+            </div>
+
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">🔧</span><div><div class="pro-tool-card-title">Stata 取数命令生成器</div><div class="pro-tool-card-sub">处理 CSMAR/Wind 导出文件 / 国家统计局 Excel</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-op-row"><label>数据来源</label>
+                        <select class="pt-select" id="pro2StataSrc">
+                            <option value="csmar">CSMAR CSV</option>
+                            <option value="stats">国家统计局 Excel</option>
+                            <option value="wind">Wind 导出 CSV</option>
+                            <option value="tushare">Tushare API</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary pro-tool-act" onclick="generateStataCode()">▶ 生成 Stata 命令</button>
+                    <pre id="pro2StataCode" class="code-block">点击上方按钮生成 Stata 命令...</pre>
+                </div>
+            </div>
+
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">🌐</span><div><div class="pro-tool-card-title">国际数据（WB / IMF / OECD）API</div><div class="pro-tool-card-sub">跨国研究：批量下载 + Python 接口</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-op-row"><label>数据源</label>
+                        <select class="pt-select" id="pro2IntlSrc">
+                            <option value="wdi">World Bank WDI</option>
+                            <option value="imf">IMF IFS / WEO</option>
+                            <option value="oecd">OECD</option>
+                            <option value="comtrade">UN Comtrade</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary pro-tool-act" onclick="generateIntlCode()">▶ 生成 API 代码</button>
+                    <pre id="pro2IntlCode" class="code-block">点击上方按钮生成 Python 代码...</pre>
+                </div>
+            </div>
+        </div>
+        <button class="btn-primary btn-large pro-finish-btn" onclick="completeProStage(2)">✓ 标记数据获取已完成，进入阶段三</button>
+    `;
+}
+
+// ===== PRO · 阶段三（数据清洗）工具 =====
+function renderProToolStage3() {
+    return `
+        <div class="pro-tool-cleanbench">
+            <div class="pro-cb-step">
+                <div class="pro-cb-num">1</div>
+                <div class="pro-cb-body">
+                    <div class="pro-cb-title">上传 CSV 数据</div>
+                    <div class="pro-cb-sub">支持任意逗号分隔 / 制表符分隔文件 · 首行表头 · 全在本机处理</div>
+                    <div class="pt-upload-zone" id="ptUploadZone" onclick="document.getElementById('ptFileInput').click()">
+                        <div class="pt-upload-icon">📂</div>
+                        <div class="pt-upload-title">拖拽 CSV 到此 或 <span class="pt-upload-link">点击选择文件</span></div>
+                        <div class="pt-upload-hint">或 <button class="btn-secondary pt-sample-btn" onclick="loadProSampleData(event)">试用内置示例数据</button></div>
+                        <input type="file" id="ptFileInput" accept=".csv,.tsv,.txt" hidden>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pro-cb-step" id="ptPreviewStep" hidden>
+                <div class="pro-cb-num">2</div>
+                <div class="pro-cb-body">
+                    <div class="pro-cb-title">数据预览（前 5 行 + 缺失统计）</div>
+                    <div id="ptPreview" class="pt-preview-wrap"></div>
+                    <div id="ptMeta" class="pt-meta-line"></div>
+                </div>
+            </div>
+
+            <div class="pro-cb-step" id="ptFreqStep" hidden>
+                <div class="pro-cb-num">3</div>
+                <div class="pro-cb-body">
+                    <div class="pro-cb-title">频度对齐</div>
+                    <div class="pro-cb-sub">月度 → 季度 / 季度 → 年度</div>
+                    <div class="pt-op-row">
+                        <label>目标频度</label>
+                        <select class="pt-select" id="ptFreqTarget">
+                            <option value="quarter">季度（取季内均值）</option>
+                            <option value="year">年度（取年内均值）</option>
+                            <option value="year-end">年度（取季末值 12月）</option>
+                        </select>
+                        <label style="margin-left:14px">参与对齐的列</label>
+                        <select class="pt-select" id="ptFreqCols" multiple size="4"></select>
+                        <button class="btn-primary" onclick="doFreqAlign()">▶ 执行频度对齐</button>
+                    </div>
+                    <div class="pt-op-tip"><strong>适用原则：</strong>高频→低频用降频（取均值/季末值），<strong>最稳妥</strong>；低频→高频需谨慎（插值会人为引入平滑假设，扭曲真实波动）。</div>
+                </div>
+            </div>
+
+            <div class="pro-cb-step" id="ptMissingStep" hidden>
+                <div class="pro-cb-num">4</div>
+                <div class="pro-cb-body">
+                    <div class="pro-cb-title">缺失值处理</div>
+                    <div class="pt-op-row">
+                        <label>处理策略</label>
+                        <select class="pt-select" id="ptMissingMethod">
+                            <option value="linear">线性插值</option>
+                            <option value="ffill">前向填充</option>
+                            <option value="bfill">后向填充</option>
+                            <option value="drop">删除缺失行</option>
+                            <option value="mean">均值填充</option>
+                        </select>
+                        <label style="margin-left:14px">应用列</label>
+                        <select class="pt-select" id="ptMissingCols" multiple size="4"></select>
+                        <button class="btn-primary" onclick="doMissing()">▶ 执行缺失值处理</button>
+                    </div>
+                    <div id="ptMissingSummary" class="pt-missing-summary"></div>
+                    <div class="pt-op-tip"><strong>关键：</strong>若缺失是<strong>非随机</strong>（如贫穷国家数据系统性缺失），删除或均值填充都会引入偏误。此时建议做<strong>多重插补</strong>并对比稳健性。</div>
+                </div>
+            </div>
+
+            <div class="pro-cb-step" id="ptLogStep" hidden>
+                <div class="pro-cb-num">5</div>
+                <div class="pro-cb-body">
+                    <div class="pro-cb-title">对数化转换</div>
+                    <div class="pt-op-row">
+                        <label>取对数的列（仅正值变量）</label>
+                        <select class="pt-select" id="ptLogCols" multiple size="4"></select>
+                        <button class="btn-primary" onclick="doLogTransform()">▶ 生成 ln_xxx 列</button>
+                    </div>
+                    <div class="pt-op-tip"><strong>对数化三大好处：</strong>① 压缩尺度，缓解极端值；② 偏态 → 更接近正态；③ 系数可解释为弹性（X 变 1%，Y 变 β%）。仅适用于<strong>正值变量</strong>（GDP/收入/价格等）。</div>
+                </div>
+            </div>
+
+            <div class="pro-cb-step" id="ptExportStep" hidden>
+                <div class="pro-cb-num">6</div>
+                <div class="pro-cb-body">
+                    <div class="pro-cb-title">操作历史 + 一键导出</div>
+                    <div id="ptHistory" class="pt-history"></div>
+                    <div class="pt-export-actions">
+                        <button class="btn-primary" onclick="exportCleanedCSV()">💾 下载清洗后的 CSV</button>
+                        <button class="btn-secondary" onclick="loadProSampleData()">🔄 重新开始</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="btn-primary btn-large pro-finish-btn" onclick="completeProStage(3)" id="proStage3Finish" hidden>✓ 标记数据清洗已完成，进入阶段四</button>
+    `;
+}
+
+// ===== PRO · 阶段四（实证推演）工具 =====
+function renderProToolStage4() {
+    return `
+        <div class="pro-tool-grid">
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">📐</span><div><div class="pro-tool-card-title">OLS 回归代码生成器</div><div class="pro-tool-card-sub">Stata / R / Python 三选一</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-op-row"><label>被解释变量 Y</label><input type="text" class="pt-input" id="pro4Y" placeholder="例如：ln_consume"></div>
+                    <div class="pro-op-row"><label>核心解释变量 X</label><input type="text" class="pt-input" id="pro4X" placeholder="例如：digital_finance_index"></div>
+                    <div class="pro-op-row"><label>控制变量</label><input type="text" class="pt-input" id="pro4C" placeholder="用空格分隔，例如：ln_income urbanization aging"></div>
+                    <div class="pro-op-row"><label>是否双向固定效应</label><input type="checkbox" id="pro4FE" checked> 个体 + 时间 FE</div>
+                    <div class="pro-op-row"><label>聚类层级</label>
+                        <select class="pt-select" id="pro4Cluster"><option value="none">不聚类</option><option value="id">个体</option><option value="time" selected>时间</option><option value="id_time">个体×时间双向</option></select>
+                    </div>
+                    <div class="pro-op-row"><label>语言</label>
+                        <select class="pt-select" id="pro4Lang" onchange="renderPro4Code()">
+                            <option value="stata" selected>Stata</option>
+                            <option value="r">R (fixest)</option>
+                            <option value="python">Python (linearmodels)</option>
+                        </select>
+                    </div>
+                    <pre id="pro4Code" class="code-block">点击下方按钮生成回归代码...</pre>
+                    <button class="btn-primary pro-tool-act" onclick="renderPro4Code()">▶ 生成回归代码</button>
+                </div>
+            </div>
+
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">✅</span><div><div class="pro-tool-card-title">回归后必跑 5 项检验清单</div><div class="pro-tool-card-sub">对应 Stata 命令一键复制</div></div></div>
+                <div class="pro-tool-card-body">
+                    <table class="pro-checklist">
+                        <thead><tr><th>检验项</th><th>适用范围</th><th>Stata 命令</th></tr></thead>
+                        <tbody>
+                            <tr><td>① 多重共线性</td><td>任何回归</td><td><code>estat vif</code></td></tr>
+                            <tr><td>② 异方差 White 检验</td><td>OLS</td><td><code>estat imtest, white</code></td></tr>
+                            <tr><td>③ 自相关 Wooldridge</td><td>面板数据</td><td><code>xtserial y x</code></td></tr>
+                            <tr><td>④ 内生性 Hausman</td><td>FE vs RE</td><td><code>hausman fe re</code></td></tr>
+                            <tr><td>⑤ 稳健性（替换变量/样本/方法）</td><td>必做</td><td>见下方模板</td></tr>
+                        </tbody>
+                    </table>
+                    <pre class="code-block">* 完整稳健性检验模板（替换变量）
+reg ln_y ln_x ln_income urbanization aging i.year i.id, cluster(id)
+eststo m1
+
+* 替换样本（剔除直辖市）
+reg ln_y ln_x ln_income urbanization aging if bjsj!=1, cluster(id)
+eststo m2
+
+* 替换核心变量
+replace ln_x = ln_x_alt
+reg ln_y ln_x ln_income urbanization aging, cluster(id)
+eststo m3
+
+esttab m1 m2 m3 using "results.rtf", se star(* 0.1 ** 0.05 *** 0.01) ar2(%9.3f)</pre>
+                </div>
+            </div>
+
+            <div class="pro-tool-card">
+                <div class="pro-tool-card-head"><span class="pro-tool-icon">🎯</span><div><div class="pro-tool-card-title">内生性处理工具（DID / IV / PSM）</div><div class="pro-tool-card-sub">核心 X 可能内生时使用</div></div></div>
+                <div class="pro-tool-card-body">
+                    <div class="pro-endog-tabs">
+                        <button class="pro-endog-tab active" data-et="did">DID</button>
+                        <button class="pro-endog-tab" data-et="iv">IV / 2SLS</button>
+                        <button class="pro-endog-tab" data-et="psm">PSM</button>
+                        <button class="pro-endog-tab" data-et="rdd">RDD</button>
+                    </div>
+                    <pre id="proEndogOut" class="code-block"></pre>
+                    <button class="btn-primary pro-tool-act" onclick="renderPro4Endog()">▶ 显示当前方法代码</button>
+                </div>
+            </div>
+        </div>
+        <button class="btn-primary btn-large pro-finish-btn" onclick="completeProStage(4)">✓ 标记实证已完成，进入 AI 论文设计</button>
+    `;
+}
+
+// ===== PRO 工具：完成某个研究阶段 =====
+function completeProStage(stageNum) {
+    const prog = state.progress[stageNum];
+    prog.completed = true;
+    prog.completeTime = Date.now();
+    prog.qIdx = Math.max(prog.qIdx || 0, 1);
+    saveState();
+    updateStepper();
+    if ($('dynamicArea')) $('dynamicArea').innerHTML = getStageSummary(stageNum);
+    showToast(`阶段${stageNum}（PRO 模式）已完成`, 'success');
+}
 function completeDataGuide(stageNum) {
     const prog = state.progress[stageNum];
     prog.completed = true;
