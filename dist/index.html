@@ -196,6 +196,11 @@
                 <div class="ai-chat-messages" id="aiChatMessages">
                     <!-- 消息历史 -->
                 </div>
+                <div class="ai-chat-quick" id="aiChatQuick">
+                    <button class="ai-quick-btn struggle" onclick="sendAIMessage('我这里卡住了，想不出来也不知道从哪下手。请你先别再问我问题，直接用大白话讲清楚这一步该怎么做，给我分好的步骤和一个能照着改的例子。', {struggle:true})">😵 我卡住了，直接讲给我听</button>
+                    <button class="ai-quick-btn" onclick="sendAIMessage('这个概念我没听懂，麻烦你用大白话和一个生活中的例子解释一遍，再告诉我它在本研究里怎么用。', {struggle:true})">💬 用大白话讲</button>
+                    <button class="ai-quick-btn" onclick="sendAIMessage('能不能给我一个完整的例子（具体到变量名/公式/代码），我照着改成自己的研究。', {struggle:true})">📎 给我个例子</button>
+                </div>
                 <div class="ai-chat-input-area">
                     <textarea class="ai-chat-input" id="aiChatInput" placeholder="向 AI 导师自由提问（Shift+Enter 换行，Enter 发送）" rows="2"></textarea>
                     <button class="ai-chat-send" id="aiChatSend" onclick="sendAIMessage()">发送</button>

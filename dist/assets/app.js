@@ -311,6 +311,202 @@ const EXAMPLE_ANSWERS = {
     '4-4': '示例：t = 3.75 > 1.96，p < 0.001，在 5% 水平下拒绝 H₀，β₁ 统计显著为正。经济含义：X 每提高 1 单位，Y 平均提高 0.45 单位（若取对数则近似弹性 0.45%），效应有实际意义。'
 };
 
+// ====== 阶段二：数据源「为什么找 / 有什么用」说明 ======
+// 目的：学生不是为下载而下载，而是要清楚每个数据源在自己的回归方程里扮演什么角色。
+// 按数据源名称精确匹配，渲染到卡片正面；无匹配的数据源会显示通用兜底文案。
+
+// 五大分类整体回答"这一大类数据解决什么问题"
+const DG_CATEGORY_PURPOSE = {
+    macro: {
+        headline: '回答"地区/国家层面的经济运行状况"',
+        why: '当你的被解释变量 Y 或核心解释变量 X 是一个地区、一个国家的宏观指标（如人均 GDP、消费、通胀、财政支出）时，数据只能从这里取。即使你做的是企业或个体层面的研究，地区层面的宏观变量也几乎都用作<b>省级/市级控制变量</b>，用来吸收地区经济水平差异，避免遗漏变量偏误。',
+        whenToUse: 'Y 或 X 是宏观指标 / 需要地区层面的控制变量 / 做省际或时间序列研究'
+    },
+    finance: {
+        headline: '回答"公司做了什么、市场如何反应"',
+        why: '当你的研究对象是<b>企业</b>——想解释企业绩效、投资效率、创新投入、股价表现——被解释变量和核心解释变量几乎都来自上市公司数据库。这是本科实证论文最常见的选题类别，因为变量齐全、样本量大、可构成面板数据。',
+        whenToUse: '研究单位是上市公司 / 需要财务指标、股价、治理结构变量'
+    },
+    industry: {
+        headline: '回答"某个具体行业运行到什么状态"',
+        why: '做行业研究时你需要的变量（产量、装机量、产销、渗透率）宏观库里没有，必须找对口的主管部门。这类数据常作为<b>核心解释变量 X</b>（如新能源汽车渗透率）或<b>行业层面的控制变量</b>，也是构造 DID 政策处理组名单的依据。',
+        whenToUse: '研究某一个具体行业 / 需要行业专属指标 / 找政策试点名单'
+    },
+    intl: {
+        headline: '回答"中国与世界其他国家比起来怎么样"',
+        why: '做跨国面板或国际比较研究时使用。它的核心价值是<b>口径统一</b>——同一指标在 200 多个国家的统计标准一致，可直接横向比较；国内年鉴数据跨国不可比，这一点无法替代。',
+        whenToUse: '研究样本包含多个国家 / 做国际比较 / 研究国际贸易与对外投资'
+    },
+    micro: {
+        headline: '回答"个体和家庭为什么会这样选择"',
+        why: '宏观和企业数据只能看到总量，看不到行为背后的<b>异质性</b>——同样是收入上升，高学历家庭和低学历家庭的消费反应可能完全不同。微观调查数据提供个体层面的收入、教育、健康、态度，能让你控制个体特征、做分组异质性分析，这也是顶刊偏好的数据形态。',
+        whenToUse: '研究单位是个人/家庭 / 需要控制个体特征 / 做异质性或机制分析'
+    }
+};
+
+// 每个数据源：在回归里扮演什么角色 / 为什么必须要它 / 适配什么选题 / 可直接取用的变量
+const DG_SOURCE_PURPOSE = {
+    '国家统计局 · 国家数据平台': {
+        role: 'Y / X / 宏观控制变量',
+        why: '这是中国宏观数据最权威的发布口径，论文里引用"国家统计局"审稿人不会质疑。它的作用不止于提供 Y 或 X——当你研究某个省份或城市时，<b>地区 GDP、人口、产业结构</b>这些必须控制的特征变量也只能从这里补，用来剔除地区固有差异对结论的干扰。',
+        fits: '区域经济增长、居民消费、通货膨胀、宏观政策效果',
+        vars: '可作 Y：人均 GDP 增长率、居民消费支出；可作 X：城镇化率、第三产业占比；控制：地区 GDP、年末人口'
+    },
+    '中国人民银行': {
+        role: 'X / 货币政策代理变量',
+        why: '研究货币政策的传导效果时，政策本身需要一个可度量的载体——M2 增速、LPR、社会融资规模就是学界通用的做法。选它的理由是<b>连续月度数据</b>，能支撑时间序列或面板月度回归，而财政或产业数据多半没有这么高的频率。',
+        fits: '货币政策传导、利率市场化、银行风险承担、信贷扩张',
+        vars: '可作 X：M2 同比、LPR 1Y/5Y+、社会融资规模增量；控制：汇率、外汇储备'
+    },
+    '财政部': {
+        role: 'X / 财政政策代理变量',
+        why: '要回答"财政投入有没有效果"，就必须拿到财政支出、税收、专项债的真实数据。它的独特价值在于<b>区分一般债与专项债、区分中央与地方</b>，这种结构性差异正是识别地方政府行为的关键，总量数据做不出这类研究。',
+        fits: '地方债务、税制改革、财政支出效率、基建投资',
+        vars: '可作 X：人均财政支出、专项债余额/ GDP、实际税率；可作 Y：财政可持续性指标'
+    },
+    '海关总署': {
+        role: 'Y / X（贸易类）',
+        why: '贸易领域的研究必须落到"哪一个产品、哪一个目的国"才有意义，总量数据会把结构性效应平均掉。海关数据的价值在于支持<b>HS 编码粒度</b>，可以从 6 位编码一路聚合到行业层面，这是其他口径给不了的灵活度。',
+        fits: '出口贸易、关税与贸易摩擦、全球价值链、出口产品质量',
+        vars: '可作 Y：出口额（对数）、出口技术复杂度；可作 X：进口中间品关税'
+    },
+    '商务部': {
+        role: 'X / 对外开放度代理变量',
+        why: '研究外资、对外投资、消费市场时使用。注意它的关键陷阱：FDI 在商务部、央行、外汇局三个口径下数值不同，你必须<b>在论文里明确标注用的是哪个口径</b>，否则审稿人无法复现你的结果。',
+        fits: '外商直接投资溢出效应、企业"走出去"、消费升级',
+        vars: '可作 X：实际利用外资/GDP、ODI 存量；可作 Y：社会消费品零售总额增速'
+    },
+    'CSMAR / Wind / 中经研究数据库': {
+        role: 'Y / X / 企业控制变量（本科论文主力）',
+        why: '这是企业层面研究最省力的起点：财务三表、股价、治理结构变量被整理成开箱即用的表格，<b>以股票代码为唯一标识可跨表合并</b>，直接构成"企业 × 年份"面板数据。它的真正价值是让你跳过数据整理阶段，把时间花在研究设计上。',
+        fits: '企业绩效、创新投入、ESG、公司治理、数字化转型',
+        vars: '可作 Y：ROA、Tobin Q、全要素生产率；可作 X：研发投入强度、数字化程度；控制：企业规模、资产负债率、成立年限'
+    },
+    'AKShare（Python · 免费）': {
+        role: '取数工具（替代 Wind）',
+        why: '当你没有学校购买的 Wind/CSMAR 权限时的正规解决方案。它的意义在于<b>数据可复现</b>——审稿人运行你的代码就能拿到同样的数据；而且接口持续维护，比自己写爬虫稳定得多，也不存在合规风险。',
+        fits: '所有需要 A 股/期货/宏观数据的选题，尤其适合没有数据库权限时',
+        vars: '可直接获取：股票日线、LPR/SHIBOR、GDP/CPI、PMI、社融、上市公司财务'
+    },
+    'Tushare（Python）': {
+        role: '取数工具（免费备用）',
+        why: 'AKShare 的互补备选。有些接口 AKShare 因源站调整暂时失效时，Tushare 仍能取到。做研究的稳妥做法是<b>两个源各下一份做交叉校验</b>，这也是论文数据可靠性的加分项。',
+        fits: '股票日线与复权价、指数成分、基本面数据',
+        vars: '可直接获取：股票日线（含复权）、沪深指数成分、宏观利率与汇率'
+    },
+    '巨潮资讯网': {
+        role: '变量补录 / 文本分析素材',
+        why: '数据库提供的是整理好的数值，但有些变量必须回到原始披露才能拿到——比如管理层讨论中的<b>数字化关键词词频</b>、或有事项、重大合同。这是权威的信息披露指定渠道，用它做文本分析数据来源最经得起检验。',
+        fits: '文本分析类选题（数字化转型、ESG 披露、风险信息披露）',
+        vars: '可构造：年报数字化词频、MD&A 语调、研发人员数量手工补录'
+    },
+    '中国债券信息网 / 外汇交易中心': {
+        role: 'Y / X（利率与汇率类）',
+        why: '研究利率传导、汇率波动时，需要<b>日度连续</b>的价格数据。用月度数据会把短期传导效应平滑掉，导致估计结果不显著——这是一类常见的"数据频度选错导致结论丢失"的错误。',
+        fits: '利率市场化、汇率传递、货币政策利率传导',
+        vars: '可作 Y/X：国债到期收益率（各期限）、人民币兑美元中间价、SHIBOR'
+    },
+    '工业和信息化部': {
+        role: 'X / 行业层面变量',
+        why: '做工业、电子信息、软件业相关选题时，宏观库里没有对应的行业专属指标。工信部月度发布的行业运行情况填补了这一层，它的优势是<b>月度更新且官方口径</b>，能与其他月度数据对齐。',
+        fits: '工业经济、电子信息与软件产业、智能制造',
+        vars: '可作 X：工业增加值增速、软件业务收入、电信业务总量'
+    },
+    '农业农村部': {
+        role: 'X / 价格波动变量',
+        why: '农产品研究的核心难点是<b>高频价格波动</b>——年度数据完全无法反映季节性和突发冲击。农业农村部的批发价格日度数据让你可以做短期波动分析，这是价格传导类研究的必要条件。',
+        fits: '农产品价格传导、粮食安全、乡村振兴、畜牧业',
+        vars: '可作 Y/X：农产品批发价格指数（日度）、畜产品产量'
+    },
+    '国家能源局': {
+        role: 'Y / X（能源与环境类）',
+        why: '能源转型、双碳类选题的核心变量（装机量、发电量、能源消费结构）只有这里有连续的官方口径。选它的理由是<b>数据链完整</b>：从生产到消费、从总量到分品种，能构造完整的能源结构指标。',
+        fits: '能源转型、低碳发展、电力市场化、能耗双控',
+        vars: '可作 X：非化石能源占比、发电装机容量；可作 Y：单位 GDP 能耗'
+    },
+    '中国汽车工业协会': {
+        role: 'X / 行业景气度',
+        why: '汽车产业链研究的标准数据源，特别是<b>新能源汽车渗透率</b>这类变量，宏观库里找不到、统计局口径也对不上。行业协会数据的价值就在于口径贴着行业本身定义。',
+        fits: '新能源汽车、汽车消费、产业链拉动',
+        vars: '可作 X：新能源车渗透率、产销量；可作 Y：出口量'
+    },
+    'CNNIC 中国互联网络信息中心': {
+        role: 'X / 数字经济代理变量',
+        why: '做数字经济选题绕不开它：网民规模、互联网普及率的时间序列只有 CNNIC 连续发布。它的作用通常是作为<b>核心解释变量</b>（如地区互联网普及率）或构造数字化水平的底层指标。',
+        fits: '数字经济、数字鸿沟、平台经济、普惠金融',
+        vars: '可作 X：互联网普及率、网民规模；可用于构造：数字普惠金融指数底层指标'
+    },
+    '世界银行 WDI': {
+        role: 'Y / X / 跨国控制变量',
+        why: '跨国研究的不二选择，核心优势是<b>两百多个国家口径完全一致</b>——你可以直接把中国的数据和美国的数据放在同一张表里。若改用各国年鉴，统计标准不同会让跨国比较失去意义。',
+        fits: '跨国比较、制度与发展、环境库兹涅茨曲线、援助与投资',
+        vars: '可作 Y：人均 GDP 增长率；可作 X：制度质量、城市化率；控制：人口、初始发展水平'
+    },
+    'IMF': {
+        role: 'X / 国际金融变量',
+        why: 'WDI 偏重发展指标，涉及汇率制度、国际收支、资本账户时 IMF 的 IFS 更对口。另一个用途是<b>WEO  forecasts 作为工具变量或外生冲击</b>的来源——这是解决内生性的一条常见思路。',
+        fits: '国际金融、汇率制度、主权债务、资本流动',
+        vars: '可作 X：实际有效汇率、资本账户开放度；控制：国际储备/GDP'
+    },
+    'OECD': {
+        role: 'X / 发达国家对比',
+        why: '研究对象聚焦发达国家时使用，因为 OECD 在这些国家的统计颗粒度优于世界银行。缺点是<b>只覆盖成员国</b>，样本国数量有限，做大样本跨国面板时反而不如 WDI。',
+        fits: '发达国家政策对比、劳动市场、教育与创新能力',
+        vars: '可作 X：研发强度、劳动参与率；可作 Y：生产率'
+    },
+    'UN Comtrade': {
+        role: 'Y / X（国际贸易明细）',
+        why: '它能回答"中国对美国的第 6 位 HS 编码商品出口了多少"这类问题——粒度越高，你越能隔离出具体产品的效应。做贸易研究若只有总量数据，结论往往只能停留在"有影响"，无法进一步解释机制。',
+        fits: '贸易协定效应、反倾销、全球价值链、出口产品质量',
+        vars: '可作 Y：分 HS 编码出口额/单价；可作 X：进口渗透率'
+    },
+    'Google Dataset Search': {
+        role: '找数据的搜索引擎',
+        why: '当你按常规渠道找不到某个冷门变量时的兜底手段——学术界已公开的数据集很多被索引在这里。注意它只是<b>检索入口而非数据源</b>，找到后必须回溯到原始发布机构核对口径与更新时间。',
+        fits: '冷门变量、前沿话题（如卫星夜光、专利文本、招聘数据）',
+        vars: '常见发现：夜光遥感数据、全球专利数据库、企业招聘大数据'
+    },
+    'CFPS 中国家庭追踪调查': {
+        role: 'Y / X / 个体控制变量',
+        why: '它的核心价值在于<b>追踪同一批个体</b>（面板而非截面），因此可以缓解遗漏变量偏误、也可以做滞后处理和因果推断。如果你研究家庭收入、教育回报、代际流动，CFPS 是目前国内质量最高的可选数据。',
+        fits: '教育与代际流动、家庭消费与储蓄、健康与劳动供给',
+        vars: '可作 Y：家庭人均消费、教育投入；可作 X：受教育年限、家庭金融资产；控制：户籍、年龄、性别'
+    },
+    'CGSS 中国综合社会调查': {
+        role: 'Y / X（态度与社会行为）',
+        why: '想研究价值观、幸福感、社会信任、就业选择这类主观变量时，它几乎是唯一来源——客观数据库记录不了"你觉得幸不幸福"。缺点是<b>横截面</b>，不能做严格的因果推断，适合做相关分析和机制探索。',
+        fits: '主观幸福感、社会信任、社会阶层认同、就业选择',
+        vars: '可作 Y：主观幸福感、社会信任度；可作 X：社会阶层认同、教育水平'
+    },
+    'CHFS 中国家庭金融调查': {
+        role: 'Y / X（家庭金融行为）',
+        why: '聚焦家庭资产负债与信贷参与，填补了 CFPS 在金融行为细节上的不足。如果你研究家庭杠杆、住房财富效应、信贷排斥，它的问卷设计远比通用调查精细。',
+        fits: '家庭负债与杠杆、住房财富效应、普惠金融、保险参与',
+        vars: '可作 Y：家庭负债率、信贷可得性；可作 X：住房资产占比、金融素养'
+    },
+    '企查查 / 天眼查': {
+        role: 'X / 企业特征补录',
+        why: '研究对象是非上市的中小企业时，上市公司数据库里查不到它们，工商信息是唯一可得的结构化来源。另一用途是<b>构造企业关系网络</b>（股权链、供应链），这类变量在数据库里买不到。',
+        fits: '中小企业、供应链传染、创业与融资、政企关联',
+        vars: '可作 X：注册资本、股权集中度、专利数量；可构造：供应链关联、董监高网络'
+    },
+    'Kaggle / 阿里天池': {
+        role: '练习与备选数据源',
+        why: '适合做方法练手或寻找非常规数据（如卫星影像、电商评论）。作为正式论文的数据源要谨慎：<b>大多无人维护、口径不明</b>，通常只能作为辅助变量或做稳健性检验的数据补充。',
+        fits: '机器学习类选题、辅助验证、公开竞赛数据',
+        vars: '常见可用：城市夜光数据、电商交易明细、舆情文本数据'
+    }
+};
+
+// 学生看完清单仍不确定时，用这张"角色 → 去哪找"表反推
+const DG_ROLE_MAP = [
+    { role: 'Y 被解释变量', desc: '你要解释的那个结果', where: '研究什么结果就去对口库：企业绩效→CSMAR；地区发展→统计局；个体行为→CFPS/CGSS', badge: 'Y' },
+    { role: 'X 核心解释变量', desc: '你认为是原因的那个变量', where: '政策类→官方试点名单；投入类→财务/财政数据；渗透率类→行业协会数据', badge: 'X' },
+    { role: '控制变量', desc: '排除其他可能的解释，证明是 X 而不是别的因素在起作用', where: '企业层面→规模、年龄、负债率；地区层面→人均 GDP、产业结构；个体层面→性别、年龄、教育、户籍', badge: 'C' },
+    { role: '机制变量', desc: '解释 X 通过什么渠道影响 Y', where: '依据你提出的传导路径去找，通常是中间环节的财务或行为指标', badge: 'M' },
+    { role: '工具变量 IV', desc: '解决 X 与 Y 互相影响的双向因果问题', where: '找与 X 相关但不直接影响 Y 的外生变量：历史数据、地理变量、政策冲击', badge: 'IV' }
+];
+
 // ====== 阶段与问题定义 ======
 const stages = {
     1: {
@@ -1803,9 +1999,18 @@ function renderDataGuideStage(stageNum) {
         `<div class="dg-tab ${i === 0 ? 'active' : ''}" data-cat="${c.id}" onclick="switchDgTab('${c.id}')"><span class="dg-tab-icon">${c.icon}</span>${c.label}</div>`
     ).join('');
 
-    const catPanels = g.categories.map((c, i) => `
+    const catPanels = g.categories.map((c, i) => {
+        const cp = DG_CATEGORY_PURPOSE[c.id];
+        const catWhy = cp ? `
+            <div class="dg-cat-why">
+                <div class="dg-cat-why-head">💡 这一类数据解决什么问题：${cp.headline}</div>
+                <div class="dg-cat-why-text">${cp.why}</div>
+                <div class="dg-cat-why-when"><strong>什么时候该来这里找：</strong>${cp.whenToUse}</div>
+            </div>` : '';
+        return `
         <div class="dg-panel ${i === 0 ? 'active' : ''}" data-panel="${c.id}">
             <p class="dg-tip">${c.tip}</p>
+            ${catWhy}
             <div class="dg-grid">
                 ${c.sources.map(s => `
                     <div class="dg-card">
@@ -1813,6 +2018,7 @@ function renderDataGuideStage(stageNum) {
                             <div class="dg-card-name">${s.name}</div>
                             <a class="dg-card-link" href="${s.url}" target="_blank" rel="noopener">进入官网 ↗</a>
                         </div>
+                        ${getSourcePurposeHtml(s)}
                         <div class="dg-card-body">${s.content}</div>
                         <div class="dg-card-meta">
                             <span class="dg-meta-item"><strong>频度：</strong>${s.freq}</span>
@@ -1839,7 +2045,8 @@ function renderDataGuideStage(stageNum) {
                 `).join('')}
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     // 三类数据取数地图
     const mapRows = g.dataMap.map(m => `
@@ -1872,6 +2079,17 @@ function renderDataGuideStage(stageNum) {
         ? `你的研究设计：<strong>${rd.varY || 'Y'}</strong>（Y）← <strong>${rd.varX || 'X'}</strong>（X）${rd.controls ? `，控制变量：${rd.controls}` : ''}。请据此判断你的变量属于哪一类，再点击上方标签查看对应数据源。`
         : '提示：先完成阶段一的研究设计（明确 Y 与 X），再回到这里按变量类型对号入座查找数据源。';
 
+    // 「为什么要找这些数据」总览：按变量在回归中的角色反推取数方向
+    const roleMapRows = DG_ROLE_MAP.map(r => `
+        <div class="dg-role-row">
+            <div class="dg-role-badge">${r.badge}</div>
+            <div class="dg-role-body">
+                <div class="dg-role-name">${r.role} <span class="dg-role-desc">${r.desc}</span></div>
+                <div class="dg-role-where">👉 ${r.where}</div>
+            </div>
+        </div>
+    `).join('');
+
     container.innerHTML = `
         <div class="stage-header">
             <div class="stage-tag">${stage.tag}</div>
@@ -1884,7 +2102,25 @@ function renderDataGuideStage(stageNum) {
             <div class="dg-banner-text">${varsLine}</div>
         </div>
 
-        <div class="dg-section-title"><span class="dg-sec-num">1</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签</span></div>
+        <details class="dg-why-overview" open>
+            <summary class="dg-why-summary"><span class="dg-sec-num-inline">0</span>先搞明白：为什么要去找这些数据？</summary>
+            <div class="dg-why-body">
+                <p class="dg-why-lead">
+                    取数不是"下载一堆表格"，而是<b>给你的回归方程凑齐零件</b>。你的方程长这样：
+                    <span class="dg-eq">Y = β₀ + β₁X + β₂·控制变量 + ε</span>
+                    所以要找的数据只有五类——先看清你要补的是哪一类，再点下面的标签找对应的库，
+                    就不会出现"下了 20 个 G 的数据，最后只用了一个变量"的情况。
+                </p>
+                <div class="dg-role-map">${roleMapRows}</div>
+                <p class="dg-why-note">
+                    <strong>判断标准：</strong>一个变量该不该费力气去找，只看一件事——<b>它不加进来，你的结论会不会站不住？</b>
+                    Y 和 X 是必须的（否则没有研究）；控制变量是防止"其实是别的因素在起作用"；机制变量用来解释"为什么会有这个效果"；
+                    工具变量只在 X 和 Y 可能互为因果时才需要。想清楚这一点，你就知道该省哪一步、该花时间在哪一步。
+                </p>
+            </div>
+        </details>
+
+        <div class="dg-section-title"><span class="dg-sec-num">1</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签，每张卡片都标明了这个库的数据能做什么用</span></div>
         <div class="dg-tabs">${catTabs}</div>
         <div class="dg-panels">${catPanels}</div>
 
@@ -1908,6 +2144,23 @@ function renderDataGuideStage(stageNum) {
 
     // 未完成时显示完成按钮
     if (!prog.completed) renderGuideCompletePanel(stageNum);
+}
+
+/**
+ * 渲染单个数据源的「为什么找 / 在我的研究里做什么用」
+ * 学生先看到用途，再看到去哪下载 —— 避免"下载了一堆不知道干嘛用的数据"
+ */
+function getSourcePurposeHtml(s) {
+    const p = DG_SOURCE_PURPOSE[s.name];
+    if (!p) return '';
+    return `
+        <div class="dg-purpose">
+            <div class="dg-purpose-role"><span class="dg-role-chip">🎯 在回归里扮演：${p.role}</span></div>
+            <div class="dg-purpose-why"><strong>为什么需要它：</strong>${p.why}</div>
+            <div class="dg-purpose-row"><strong>适配什么选题：</strong>${p.fits}</div>
+            <div class="dg-purpose-row"><strong>可直接取用的变量：</strong>${p.vars}</div>
+        </div>
+    `;
 }
 
 // 数据源分类标签切换
@@ -2420,13 +2673,118 @@ function renderInputPanel(stageNum) {
             </div>
             ${helpHtml}
             <textarea id="answerInput" class="text-input" rows="4" placeholder="在此输入你的思考..."></textarea>
+            <div class="struggle-tip" id="struggleTip" hidden>
+                <span class="struggle-tip-icon">🤔</span>
+                <div class="struggle-tip-body">
+                    <div class="struggle-tip-text">想了一会儿了？这一步不用硬憋，让导师先把思路讲给你听。</div>
+                    <div class="struggle-tip-actions">
+                        <button class="struggle-tip-btn" onclick="openHelp(${stageNum})">💬 讲讲思路</button>
+                        <button class="struggle-tip-btn primary" onclick="giveDirectAnswer(${stageNum})">📎 直接给我答案</button>
+                    </div>
+                </div>
+            </div>
             <div class="input-actions">
                 <button class="btn-secondary" onclick="openHelp(${stageNum})">需要帮助</button>
+                <button class="btn-secondary struggle" onclick="giveDirectAnswer(${stageNum})">😵 卡住了</button>
                 <button class="btn-primary" onclick="submitAnswer(${stageNum})">提交回答</button>
             </div>
         </div>
     `;
     $('answerInput').focus();
+    startIdleWatch(stageNum);
+}
+
+// ====== 卡壳自动感知：作答框长时间无内容时，主动提供帮助入口 ======
+let inputIdleTimer = null;
+const IDLE_THRESHOLD_MS = 100000; // 100 秒无任何输入即提示
+
+function startIdleWatch(stageNum) {
+    clearTimeout(inputIdleTimer);
+    const ta = $('answerInput');
+    // 学生一旦开始写，就把提示收起来，不打扰
+    if (ta) ta.addEventListener('input', hideIdleTip);
+    inputIdleTimer = setTimeout(() => {
+        const ta2 = $('answerInput');
+        const tip = $('struggleTip');
+        // 已经开始写了就不打扰；面板已切换也不打扰
+        if (!ta2 || !tip) return;
+        if ((ta2.value || '').trim().length > 0) return;
+        tip.hidden = false;
+    }, IDLE_THRESHOLD_MS);
+}
+
+function hideIdleTip() {
+    const tip = $('struggleTip');
+    if (tip) tip.hidden = true;
+}
+
+function stopIdleWatch() {
+    clearTimeout(inputIdleTimer);
+    inputIdleTimer = null;
+}
+
+// ====== 直接给出讲解与参考答案（学生卡住时的兜底帮助） ======
+function giveDirectAnswer(stageNum) {
+    const stage = stages[stageNum];
+    const prog = state.progress[stageNum];
+    const q = stage.questions[prog.qIdx];
+    if (!q) return;
+    stopIdleWatch();
+
+    prog.hintsUsed = (prog.hintsUsed || 0) + 1;
+    prog.refUsed = prog.refUsed || {};
+    prog.refUsed[prog.qIdx] = true;
+    saveState();
+
+    const exampleKey = `${stageNum}-${prog.qIdx}`;
+    const example = EXAMPLE_ANSWERS[exampleKey];
+    // 概念讲解卡（是什么 / 怎么做 / 举个例子 / 为什么）
+    const conceptCard = getConceptCardHtml(q).replace('（初学者模式自动展开）', '');
+    const conceptsLine = (q.concepts || []).length
+        ? `<div class="da-points">✍️ 回答要点：${q.concepts.map(c => `「${c.missing}」`).join(' ')}</div>` : '';
+
+    const area = $('dynamicArea');
+    area.innerHTML = `
+        <div class="help-panel da-panel">
+            <div class="help-panel-header">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L10 5.5L14.5 6L11 9L12 13.5L8 11.5L4 13.5L5 9L1.5 6L6 5.5L8 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                导师直接讲解
+            </div>
+            <div class="da-intro">没关系，这一步本来就不好想。导师先把思路讲清楚，你看懂之后改成自己的研究就行——允许直接参考。</div>
+            <div class="da-block">
+                <div class="da-label">这一问到底要你答什么</div>
+                <div class="da-text">${q.hint || '把你当前对这一步的想法写出来即可，导师会针对你的回答继续引导。'}</div>
+            </div>
+            ${conceptsLine}
+            ${conceptCard}
+            ${example ? `
+            <div class="da-block da-example">
+                <div class="da-label">可以直接参考的回答</div>
+                <div class="da-text">${example}</div>
+            </div>` : ''}
+            <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+                ${example ? `<button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="useReferenceAnswer(${stageNum})">用这个思路，填入作答框改写</button>` : ''}
+                <button class="btn-secondary" style="padding:8px 16px;font-size:13px" onclick="renderInputPanel(${stageNum})">我自己再想想</button>
+                <button class="btn-secondary" style="padding:8px 16px;font-size:13px" onclick="openHelp(${stageNum})">还想追问细节</button>
+            </div>
+        </div>
+    `;
+}
+
+// 把参考答案填入作答框，学生改写后提交
+function useReferenceAnswer(stageNum) {
+    const prog = state.progress[stageNum];
+    const key = `${stageNum}-${prog.qIdx}`;
+    const raw = EXAMPLE_ANSWERS[key] || '';
+    const text = String(raw).replace(/示例[：:]\s*/, '').replace(/<[^>]+>/g, '');
+    renderInputPanel(stageNum);
+    const ta = $('answerInput');
+    if (ta) {
+        ta.value = text;
+        ta.focus();
+        ta.setSelectionRange(text.length, text.length);
+    }
+    showToast('已填入参考思路，请改成你自己的研究内容后提交', 'info');
 }
 
 // ====== 提交回答 ======
@@ -2467,6 +2825,7 @@ async function submitAnswer(stageNum) {
     // 记录回答
     prog.answers[prog.qIdx] = ans;
     
+    stopIdleWatch();
     // 清除输入面板
     $('dynamicArea').innerHTML = '';
     
@@ -3801,15 +4160,41 @@ function escapeHTML(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-async function sendAIMessage(predefinedText) {
+// ====== 卡壳检测：识别学生"不理解 / 放弃了"的信号，主动触发导师直给模式 ======
+// 命中即视为求助；连续两轮"很简短的回答"也视为卡壳（对应"长时间思考不出来"）
+const STRUGGLE_RE = /(不知道|不晓得|不懂|不理解|没听懂|听不懂|看不懂|没看懂|不会|不会做|不会写|没思路|没想法|想不到|想不出|想不出来|没办法|无从下手|不知道怎么|什么意思|是什么意|太难了|很难|搞不定|不太明白|没明白|卡住了|有点懵|一脸懵|\?{2,}|？{2,}|救救|帮帮我|帮我直接|直接告诉我|给个答案|有没有答案|跳过|放弃|随便吧|都行|算了)/;
+
+let struggleStreak = 0; // 连续"无力"轮次
+
+/**
+ * 判断本轮是否要触发直给模式
+ * @param {string} text 学生本轮输入
+ * @param {boolean} forced 点击了求助按钮
+ */
+function detectStruggle(text, forced) {
+    if (forced) { struggleStreak = 0; return true; }
+    const s = String(text || '').trim();
+    if (!s) return false;
+    if (STRUGGLE_RE.test(s)) { struggleStreak = 0; return true; }
+    // 回答过短且没有任何实质内容（学生的"我不知道"式敷衍）
+    const weak = s.length <= 12 && !/变量|回归|显著|内生|面板|样本|模型|数据|假设|系数|检验|工具变量/i.test(s);
+    struggleStreak = weak ? struggleStreak + 1 : 0;
+    return struggleStreak >= 2;
+}
+
+async function sendAIMessage(predefinedText, opts) {
     if (aiChatLoading) return;
     const input = $('aiChatInput');
     const sendBtn = $('aiChatSend');
+    const forced = !!(opts && opts.struggle);
     const text = (predefinedText || input?.value || '').trim();
     if (!text) return;
+    const struggle = detectStruggle(text, forced);
     if (input) input.value = '';
     if (sendBtn) sendBtn.disabled = true;
     aiChatLoading = true;
+
+    if (struggle) addAIMsg('system', '已切换到「直接讲解」模式：导师本轮会先讲清楚做法，不再反过来提问。');
 
     addAIMsg('user', text);
     aiChatHistory.push({ role: 'user', content: text });
@@ -3825,7 +4210,7 @@ async function sendAIMessage(predefinedText) {
         const r = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: stageNum, level: currentLevel() || 'intermediate', messages: aiChatHistory })
+            body: JSON.stringify({ stage: stageNum, level: currentLevel() || 'intermediate', struggle, messages: aiChatHistory })
         });
         const data = await r.json();
         if (!r.ok) {
@@ -3877,6 +4262,11 @@ function renderPaperStage(stageNum) {
                     <div class="ai-msg-bubble">欢迎进入自主研究阶段！上方选择一个论文环节（选题/文献/设计/写作/答辩），我将以资深论文导师的身份与你深入讨论。<br><br>如果想泛泛聊聊，直接在下方输入框提问即可。</div>
                 </div>
             </div>
+            <div class="ai-chat-quick">
+                <button class="ai-quick-btn struggle" onclick="sendPaperMessage('这一环节我不知道怎么写也没思路。请你不要再问我问题，直接告诉我该怎么写，给我结构和一段可以照着改的示范文字。', {struggle:true})">😵 没思路，直接给我讲怎么写</button>
+            <button class="ai-quick-btn" onclick="sendPaperMessage('这个写作要点我没看明白，用大白话和一个具体例子说明。', {struggle:true})">💬 用大白话讲</button>
+            <button class="ai-quick-btn" onclick="sendPaperMessage('给我一个完整的示范模板（含句式），我照着改成自己的内容。', {struggle:true})">📎 给我示范模板</button>
+            </div>
             <div class="paper-chat-input-area">
                 <textarea class="paper-chat-input" id="paperChatInput" placeholder="向 AI 论文导师提问（Enter 发送，Shift+Enter 换行）" rows="2"></textarea>
                 <button class="paper-chat-send" id="paperChatSend" onclick="sendPaperMessage()">发送</button>
@@ -3912,17 +4302,25 @@ function selectPaperSection(id) {
     sendPaperMessage(section.starter);
 }
 
-async function sendPaperMessage(predefinedText) {
+async function sendPaperMessage(predefinedText, opts) {
     if (aiChatLoading) return;
     const input = $('paperChatInput');
     const sendBtn = $('paperChatSend');
+    const forced = !!(opts && opts.struggle);
     const text = (predefinedText || input?.value || '').trim();
     if (!text) return;
+    const struggle = detectStruggle(text, forced);
     if (input) input.value = '';
     if (sendBtn) sendBtn.disabled = true;
     aiChatLoading = true;
 
     const area = $('paperChatMessages');
+    if (struggle) {
+        const sys = document.createElement('div');
+        sys.className = 'ai-msg system';
+        sys.innerHTML = `<div class="ai-msg-avatar">💡</div><div class="ai-msg-bubble">已切换到「直接讲解」模式：导师本轮会先把写法讲清楚，不再反过来提问。</div>`;
+        area.appendChild(sys);
+    }
     const userWrap = document.createElement('div');
     userWrap.className = 'ai-msg user';
     userWrap.innerHTML = `<div class="ai-msg-avatar">我</div><div class="ai-msg-bubble"></div>`;
@@ -3940,7 +4338,7 @@ async function sendPaperMessage(predefinedText) {
         const r = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: 5, level: currentLevel() || 'intermediate', messages: aiChatHistory })
+            body: JSON.stringify({ stage: 5, level: currentLevel() || 'intermediate', struggle, messages: aiChatHistory })
         });
         const data = await r.json();
         if (!r.ok) {

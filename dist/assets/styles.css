@@ -299,6 +299,57 @@ body {
 
 .input-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 .input-actions .btn-primary, .input-actions .btn-secondary { padding: 10px 20px; font-size: 14px; }
+.input-actions .btn-secondary.struggle { border-color: rgba(232,168,56,0.5); color: var(--accent); }
+.input-actions .btn-secondary.struggle:hover { background: rgba(232,168,56,0.1); }
+
+/* ====== 卡壳主动帮助（struggle tip / 求助入口 / 直接讲解卡） ====== */
+.struggle-tip {
+    display: flex; gap: 12px; align-items: flex-start;
+    margin-top: 12px; padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(45,125,210,0.06), rgba(45,125,210,0.02));
+    border: 1px dashed rgba(45,125,210,0.35);
+    border-radius: var(--radius-sm);
+    animation: fadeIn 0.35s ease;
+}
+.struggle-tip-icon { font-size: 22px; line-height: 1.2; }
+.struggle-tip-body { flex: 1; }
+.struggle-tip-text { font-size: 13.5px; color: var(--text); line-height: 1.7; margin-bottom: 10px; }
+.struggle-tip-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.struggle-tip-btn {
+    padding: 7px 14px; font-size: 13px; font-family: inherit; cursor: pointer;
+    border-radius: var(--radius-sm); border: 1px solid rgba(45,125,210,0.3);
+    background: var(--bg-card); color: var(--primary); transition: var(--transition);
+}
+.struggle-tip-btn:hover { background: rgba(45,125,210,0.08); }
+.struggle-tip-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.struggle-tip-btn.primary:hover { filter: brightness(1.08); background: var(--primary); }
+
+.ai-chat-quick {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding: 8px 12px; border-top: 1px solid var(--border);
+}
+.ai-quick-btn {
+    padding: 6px 11px; font-size: 12.5px; font-family: inherit; cursor: pointer;
+    border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text-secondary); line-height: 1.4;
+    transition: var(--transition);
+}
+.ai-quick-btn:hover { border-color: var(--primary-light); color: var(--primary); background: rgba(45,125,210,0.06); }
+.ai-quick-btn.struggle { border-color: rgba(232,168,56,0.45); color: var(--accent); background: rgba(232,168,56,0.07); }
+.ai-quick-btn.struggle:hover { background: rgba(232,168,56,0.14); }
+
+.da-panel { animation: fadeIn 0.3s ease; }
+.da-intro {
+    font-size: 13.5px; color: var(--text-secondary); line-height: 1.8;
+    margin-bottom: 14px; padding: 10px 14px;
+    background: rgba(232,168,56,0.07); border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent);
+}
+.da-block { margin-bottom: 14px; }
+.da-label { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.da-text { font-size: 14px; line-height: 1.85; color: var(--text); }
+.da-example { padding: 14px 16px; background: var(--bg-card); border: 1px solid rgba(46,174,102,0.25); border-radius: var(--radius-sm); }
+.da-points { font-size: 13.5px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 12px; }
 
 /* ====== Conversational Help Panel ====== */
 .help-panel {
@@ -772,6 +823,81 @@ body {
     border-radius: 8px; padding: 8px 10px; line-height: 1.6;
 }
 .dg-card-how strong { color: #1a4d8f; }
+
+/* ====== 数据用途说明：这一类解决什么问题 / 这个源在我的回归里做什么 ====== */
+.dg-cat-why {
+    background: linear-gradient(135deg, rgba(45,125,210,0.05), rgba(45,125,210,0.015));
+    border: 1px solid rgba(45,125,210,0.22); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 14px;
+}
+.dg-cat-why-head { font-size: 13.5px; font-weight: 700; color: #1a4d8f; margin-bottom: 6px; }
+.dg-cat-why-text { font-size: 13px; color: #334e68; line-height: 1.75; margin-bottom: 6px; }
+.dg-cat-why-text b { color: #1a4d8f; }
+.dg-cat-why-when { font-size: 12.5px; color: #5a6a7e; line-height: 1.6; }
+.dg-cat-why-when strong { color: #e8a838; }
+
+.dg-purpose {
+    background: rgba(232,168,56,0.05); border-left: 3px solid #e8a838;
+    border-radius: 0 8px 8px 0; padding: 10px 12px;
+}
+.dg-purpose-role { margin-bottom: 8px; }
+.dg-role-chip {
+    display: inline-block; font-size: 12px; font-weight: 600; color: #a8671a;
+    background: rgba(232,168,56,0.13); border-radius: 100px; padding: 3px 10px; line-height: 1.5;
+}
+.dg-purpose-why { font-size: 12.5px; color: #334e68; line-height: 1.75; margin-bottom: 6px; }
+.dg-purpose-why strong { color: #a8671a; }
+.dg-purpose-row { font-size: 12px; color: #5a6a7e; line-height: 1.7; margin-top: 4px; }
+.dg-purpose-row strong { color: #8a99ad; }
+
+/* ====== 「为什么要找这些数据」总览区 ====== */
+.dg-why-overview {
+    background: #fff; border: 1px solid rgba(45,125,210,0.25); border-radius: 12px;
+    margin-bottom: 22px; overflow: hidden;
+}
+.dg-why-summary {
+    cursor: pointer; padding: 14px 16px; font-size: 14.5px; font-weight: 700; color: #1a4d8f;
+    list-style: none; display: flex; align-items: center; gap: 8px; transition: background .2s;
+}
+.dg-why-summary::-webkit-details-marker { display: none; }
+.dg-why-summary:hover { background: rgba(45,125,210,0.05); }
+.dg-why-summary::before { content: '▸'; font-size: 13px; color: #2d7dd2; transition: transform .2s; }
+.dg-why-overview[open] .dg-why-summary::before { transform: rotate(90deg); }
+.dg-sec-num-inline {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 6px; background: #2d7dd2; color: #fff;
+    font-size: 12px; font-weight: 700;
+}
+.dg-why-body { padding: 0 16px 16px; }
+.dg-why-lead { font-size: 13.5px; color: #334e68; line-height: 1.85; margin-bottom: 12px; }
+.dg-why-lead b { color: #1a4d8f; }
+.dg-eq {
+    display: inline-block; font-family: 'SF Mono', Menlo, Consolas, monospace;
+    background: #f0f4f9; border: 1px solid #dde5ef; border-radius: 6px;
+    padding: 2px 10px; margin: 0 4px; color: #1a4d8f; font-size: 13px;
+}
+.dg-role-map { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.dg-role-row {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; background: #f7f9fc; border-radius: 8px;
+    border: 1px solid #e6ecf4;
+}
+.dg-role-badge {
+    flex-shrink: 0; width: 34px; height: 26px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    background: #1a4d8f; color: #fff; font-size: 12px; font-weight: 700;
+}
+.dg-role-body { flex: 1; min-width: 0; }
+.dg-role-name { font-size: 13px; font-weight: 600; color: #1a4d8f; margin-bottom: 3px; }
+.dg-role-desc { font-weight: 400; color: #8a99ad; font-size: 12px; }
+.dg-role-where { font-size: 12.5px; color: #5a6a7e; line-height: 1.65; }
+.dg-why-note {
+    font-size: 12.5px; color: #5a6a7e; line-height: 1.8;
+    padding: 10px 12px; background: rgba(232,168,56,0.06);
+    border-radius: 8px; border-left: 3px solid #e8a838;
+}
+.dg-why-note strong { color: #a8671a; }
+.dg-why-note b { color: #1a4d8f; }
 
 .dg-map { background: #fff; border: 1px solid #e0e6ee; border-radius: 12px; overflow: hidden; }
 .dg-map-head, .dg-map-row {
