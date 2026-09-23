@@ -1456,3 +1456,185 @@ body {
     font-size: 12.5px;
     line-height: 1.7;
 }
+
+/* ====== 数据用途：下载之后怎么用 ====== */
+.dg-purpose-use {
+    margin-top: 7px;
+    padding: 8px 10px;
+    background: #f2f7ff;
+    border-left: 3px solid #4a90d9;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    color: #33506e;
+    line-height: 1.75;
+}
+.dg-purpose-use strong { color: #1a4d8f; }
+
+/* ====== 数据到手之后的使用流水线 ====== */
+.dg-usage-intro {
+    background: #fffaf0;
+    border: 1px solid #f0dfbc;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #6b5730;
+    line-height: 1.85;
+    margin-bottom: 14px;
+}
+.dg-usage-flow { display: flex; flex-direction: column; gap: 10px; }
+.dg-usage-step {
+    display: flex;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid #e0e6ee;
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: box-shadow .15s;
+}
+.dg-usage-step:hover { box-shadow: 0 2px 10px rgba(26,77,143,.08); }
+.dg-usage-n {
+    flex: 0 0 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a4d8f, #3a7bc8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+.dg-usage-main { flex: 1; min-width: 0; }
+.dg-usage-title { font-size: 14px; font-weight: 600; color: #1f2d3d; margin-bottom: 7px; }
+.dg-usage-row { font-size: 12.5px; color: #4a5a6e; line-height: 1.75; margin-top: 5px; }
+.dg-usage-tag {
+    display: inline-block;
+    min-width: 52px;
+    text-align: center;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-right: 7px;
+    vertical-align: 1px;
+}
+.dg-usage-tag.do { background: #e8f4ea; color: #2d7a3e; }
+.dg-usage-tag.out { background: #e8f0fb; color: #1a4d8f; }
+.dg-usage-tag.warn { background: #fdeeee; color: #a33; }
+.dg-usage-row.warn-row { color: #8a4040; }
+.dg-usage-next {
+    margin-top: 14px;
+    background: #f6f9fc;
+    border: 1px dashed #bfd2e5;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.dg-usage-next-head { font-size: 13px; font-weight: 600; color: #1a4d8f; margin-bottom: 6px; }
+.dg-usage-next-body { font-size: 12.5px; color: #4a5a6e; line-height: 1.85; }
+.dg-usage-next-body code {
+    background: #fff;
+    border: 1px solid #d8e2ec;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
+    color: #1a4d8f;
+}
+
+/* ====== 初学者「导师先讲清楚」卡 ====== */
+.primer-card {
+    background: linear-gradient(180deg, #f8fbff 0%, #fdfefe 100%);
+    border: 1px solid #cfe0f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    box-shadow: 0 1px 4px rgba(26,77,143,.06);
+}
+.primer-head {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    flex-wrap: wrap;
+    padding-bottom: 9px;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #d6e3f0;
+}
+.primer-title { font-size: 14px; font-weight: 700; color: #1a4d8f; }
+.primer-sub { font-size: 11.5px; color: #8a99ad; }
+.primer-row { display: flex; gap: 10px; margin-bottom: 9px; align-items: flex-start; }
+.primer-tag {
+    flex: 0 0 auto;
+    min-width: 92px;
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 5px;
+    margin-top: 1px;
+}
+.primer-row.plain .primer-tag { background: #e8f0fb; color: #1a4d8f; }
+.primer-row.why .primer-tag { background: #fdf0e4; color: #a0661f; }
+.primer-row.terms .primer-tag { background: #eaf6ee; color: #2d7a3e; }
+.primer-row.how .primer-tag { background: #f0eafc; color: #6a45b8; }
+.primer-body { flex: 1; font-size: 13px; color: #3a4a5e; line-height: 1.85; min-width: 0; }
+.primer-term { margin-bottom: 3px; }
+.primer-term b { color: #1a4d8f; }
+.primer-steps { margin: 0; padding-left: 18px; }
+.primer-steps li { margin-bottom: 4px; line-height: 1.8; }
+.primer-starter {
+    margin-top: 11px;
+    background: #fff;
+    border: 1px solid #dce7f2;
+    border-radius: 9px;
+    padding: 10px 12px;
+}
+.primer-starter-head { font-size: 12px; font-weight: 600; color: #1a4d8f; margin-bottom: 7px; }
+.primer-starter-body {
+    font-size: 12.5px;
+    color: #3a4a5e;
+    line-height: 1.9;
+    background: #fafcfe;
+    border-left: 3px solid #a8c8e8;
+    padding: 7px 10px;
+    border-radius: 0 5px 5px 0;
+}
+.primer-starter-actions { margin-top: 9px; }
+.primer-btn {
+    background: #1a4d8f;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background .15s;
+}
+.primer-btn:hover { background: #153d72; }
+.primer-foot {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px dashed #d6e3f0;
+    font-size: 11.5px;
+    color: #8a99ad;
+    line-height: 1.7;
+}
+
+/* ====== 主动救助面板（答不上来时自动铺开） ====== */
+.rescue-box {
+    background: #fffaf3;
+    border: 1px solid #f0d9a8;
+    border-radius: 11px;
+    padding: 13px 15px;
+    margin-bottom: 12px;
+}
+.rescue-head {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #96601a;
+    margin-bottom: 9px;
+}
+.rescue-row { font-size: 12.5px; color: #5a4a2e; line-height: 1.8; margin-bottom: 7px; }
+.rescue-row strong { color: #7a5010; }
+.rescue-example { background: #fff; border: 1px solid #ecd9b8; border-radius: 8px; padding: 9px 11px; }
+.rescue-label { font-size: 12px; font-weight: 600; color: #96601a; margin-bottom: 6px; }
+.rescue-body { font-size: 12.5px; color: #4a3a20; line-height: 1.9; }
+.rescue-actions { margin-top: 9px; }
+.rescue-tip { font-size: 11.5px; color: #977c4a; font-style: normal; margin-bottom: 0; }

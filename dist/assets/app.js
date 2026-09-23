@@ -295,6 +295,210 @@ function getConceptCardHtml(q) {
     return html;
 }
 
+// 初学者「导师先讲清楚」卡：每题自动展开，从零讲起
+// 回答四个问题：这题在问什么 / 为什么现在必须搞清楚 / 术语什么意思 / 具体怎么答
+function getBeginnerCardHtml(stageNum, qIdx, opts) {
+    opts = opts || {};
+    const key = `${stageNum}-${qIdx}`;
+    const p = BEGINNER_PRIMER[key];
+    if (!p) return '';
+    const byId = 'primer' + stageNum + '_' + qIdx;
+    let html = `<div class="primer-card">
+        <div class="primer-head">
+            <span class="primer-title">🎓 导师先把这件事讲清楚</span>
+            <span class="primer-sub">不用急着回答，先看完这一段</span>
+        </div>
+        <div class="primer-row plain">
+            <span class="primer-tag">这题在问什么</span>
+            <div class="primer-body">${p.ask}</div>
+        </div>
+        <div class="primer-row why">
+            <span class="primer-tag">为什么要现在搞清楚</span>
+            <div class="primer-body">${p.why}</div>
+        </div>`;
+    if (p.terms && p.terms.length) {
+        html += `<div class="primer-row terms">
+            <span class="primer-tag">碰到不懂的词</span>
+            <div class="primer-body">${p.terms.map(t => `<div class="primer-term"><b>${t[0]}</b>：${t[1]}</div>`).join('')}</div>
+        </div>`;
+    }
+    html += `<div class="primer-row how">
+            <span class="primer-tag">照着这个思路想</span>
+            <div class="primer-body"><ol class="primer-steps">${p.how.map(s => `<li>${s}</li>`).join('')}</ol></div>
+        </div>
+        <div class="primer-starter">
+            <div class="primer-starter-head">✍️ 可以直接照着改的回答示例（横线处换成你自己的内容）</div>
+            <div class="primer-starter-body" id="${byId}">${p.starter}</div>
+            ${opts.noFill ? '' : `
+            <div class="primer-starter-actions">
+                <button class="primer-btn" onclick="usePrimerStarter('${byId}')">📥 填入答题框，我改成自己的</button>
+            </div>`}
+        </div>
+        <div class="primer-foot">如果看完还是没思路，直接点下面的「😵 卡住了」，导师会直接把答案讲给你。</div>
+    </div>`;
+    return html;
+}
+
+// 把示例回答填入答题框（保留已有草稿，避免覆盖学生自己写的内容）
+function usePrimerStarter(id) {
+    const src = document.getElementById(id);
+    const ta = $('answerInput');
+    if (!src || !ta) return;
+    const text = src.innerText.replace(/____/g, '　　　');
+    if ((ta.value || '').trim()) {
+        if (!confirm('答题框里已经有内容了。要把示例追加到后面吗？（选「取消」则不改动）')) return;
+        ta.value = ta.value.replace(/\s*$/, '') + '\n\n' + text;
+    } else {
+        ta.value = text;
+    }
+    ta.focus();
+    ta.setSelectionRange(0, ta.value.length);
+    showToast('已填入示例，请把横线处改成你自己的研究内容', 'info');
+}
+
+// 示例句子ESCAPE：提供「我不会」时的救助（由 submitAnswer / 闲置触发）
+function renderRescueBox(stageNum, qIdx, opts) {
+    opts = opts || {};
+    const key = `${stageNum}-${qIdx}`;
+    const stage = stages[stageNum];
+    const q = stage.questions[qIdx];
+    const p = BEGINNER_PRIMER[key];
+    const hasExample = !!EXAMPLE_ANSWERS[key];
+    return `
+        <div class="rescue-box">
+            <div class="rescue-head">${opts.reason || '这一步不用硬憋，导师直接帮你'}</div>
+            ${q && q.hint ? `<div class="rescue-row"><strong>💡 提示：</strong>${q.hint}</div>` : ''}
+            ${p ? `<div class="rescue-row"><strong>🎯 其实这题要的答案是：</strong>${p.ask}</div>` : ''}
+            ${hasExample ? `
+                <div class="rescue-row rescue-example">
+                    <div class="rescue-label">📎 参考答案（看完请改写成自己的研究再提交）</div>
+                    <div class="rescue-body">${EXAMPLE_ANSWERS[key]}</div>
+                </div>
+                <div class="rescue-actions">
+                    <button class="primer-btn" onclick="fillReference(${stageNum}, ${qIdx})">📥 把参考答案填进答题框</button>
+                </div>
+            ` : ''}
+            <div class="rescue-row rescue-tip">参考答案只是让你知道「一个合格的回答长什么样」。直接抄也能过关，但把它改成你自己的研究对象，这一步才算真的学会了。</div>
+        </div>
+    `;
+}
+
+// 把参考答案填入答题框
+function fillReference(stageNum, qIdx) {
+    const key = `${stageNum}-${qIdx}`;
+    const ref = EXAMPLE_ANSWERS[key];
+    const ta = $('answerInput');
+    if (!ref || !ta) return;
+    if ((ta.value || '').trim()) {
+        if (!confirm('答题框里已经有内容了。要把参考答案追加到后面吗？（选「取消」则不改动）')) return;
+        ta.value = ta.value.replace(/\s*$/, '') + '\n\n' + ref;
+    } else {
+        ta.value = ref;
+    }
+    ta.focus();
+    showToast('已填入参考答案，请改成你自己的研究内容', 'info');
+}
+
+// 初学者模式：识别「我不会/不知道」类回答（用于主动提供帮助，不等学生开口）
+const GIVEUP_RE = /(不知道|不晓得|不懂|不理解|不会|没思路|没想法|想不到|想不出|想不出来|无从下手|不知道怎么|搞不定|没明白|不太明白|卡住|不会写|不会做|太难|随便|都行|跳过|放弃)/;
+
+function looksLikeGiveUp(s) {
+    const t = String(s || '').trim();
+    if (!t) return true;
+    if (t.length <= 12 && GIVEUP_RE.test(t)) return true;
+    if (t.length <= 20 && GIVEUP_RE.test(t) && !/[，。；？?]/.test(t.slice(-1))) return true;
+    return false;
+}
+
+// ====== 初学者「从零讲起」底稿（按 阶段-题号 索引）======
+// 每题回答四个问题：这题在问什么 / 为什么非要现在搞清楚 / 术语什么意思 / 具体怎么答
+const BEGINNER_PRIMER = {
+    '1-0': {
+        ask: '用一句话说清楚：你想弄清楚「A 会不会影响 B」——A 和 B 都得是现实中能查到数字的东西。',
+        why: '研究问题是整篇论文的靶心。靶心不清晰，后面选变量、找数据、选模型全都会摇摆——最常见的后果是数据找了一堆，跑回归时不知道该拿谁当 Y。',
+        terms: [['实证研究', '不是写观点，而是拿真实数据去验证一个可以被推翻的说法'], ['因果关系', 'A 的变化真的带来了 B 的变化，而不只是两者同时发生'], ['可检验', '这个说法能用数据算出「是」或「不是」，而不是见仁见智']],
+        how: ['第一步：挑一个你真的好奇的现象，最好和你的专业或生活经验有关', '第二步：把它写成「A 是否影响 B」的句式，A 在后、B 在前', '第三步：检查能不能找到衡量 A 和 B 的数字——找不到就换一个'],
+        starter: '本研究试图回答：____ 是否促进了 ____ 的提升？我关心这一关系，是因为现实中可以观察到 ____ 的现象，但其因果效果尚不明确。'
+    },
+    '1-1': {
+        ask: '指出你的研究里谁是「果」——也就是那个被解释、被预测的变量，并说明用什么数字来衡量它。',
+        why: 'Y 是回归方程左边的量，决定了你整篇论文要去解释什么。Y 定错，后面所有数据都是白找。',
+        terms: [['被解释变量 Y', '你要解释的那个「结果」，放在等号左边'], ['衡量方式', '用哪个具体指标代表这个概念。比如「消费水平」不能直接用，要用「人均消费支出」'], ['对数化 ln', '把变量取自然对数，好处是系数可以直接读成「变动百分之一会怎样」']],
+        how: ['第一步：回到你的研究问题，找出表示「结果」的那个词', '第二步：给这个词找一个可查到的具体指标', '第三步：说明用原始数值、还是取对数、还是算增长率'],
+        starter: '被解释变量 Y 是 ____ ，用「____」来衡量。考虑到该变量为正值且量纲较大，我采用自然对数形式 ln(____)，这样估计系数可以直接解释为弹性。'
+    },
+    '1-2': {
+        ask: '指出你的研究里谁是「因」——那个你认为推动了 Y 变化的关键因素，并说明怎么衡量它。',
+        why: 'X 的系数 β₁ 是你整篇论文唯一真正关心的数字。X 选得不具体（比如只写「政策」而没写用哪个指标度量政策），到了阶段四你会发现方程根本写不出来。',
+        terms: [['核心解释变量 X', '你最关心的那个「原因」，它的系数就是研究结论'], ['边际效应', 'X 变动一个单位，Y 平均变动多少']],
+        how: ['第一步：回到研究问题，找出表示「推动力量」的那个词', '第二步：确认这个力量在现实中有公认的度量方式', '第三步：把它和 Y 区分开——别把另一个「果」误当成「因」'],
+        starter: '核心解释变量 X 是 ____ ，采用「____」衡量。核心系数 β₁ 刻画了 X 对 Y 的边际效应，若 β₁ 显著为正，说明 ____ 对 ____ 具有促进作用。'
+    },
+    '1-3': {
+        ask: '列出除了 X 以外、同样会影响 Y 的那些变量。它们不是主角，但必须请进模型。',
+        why: '这是计量论文最容易翻车的一步。某个变量如果同时影响 X 和 Y，你又不把它放进模型，它的作用就会被算到 X 头上，β₁ 变成一个有偏的数字——审稿人第一个问的就是这个。',
+        terms: [['控制变量', '陪跑的变量，用来排除干扰，你不需要解释它的系数'], ['遗漏变量偏误', '漏掉了该控制的变量，导致核心系数的估计不可信'], ['固定效应', '把「地区固有差异」「年份共同冲击」这类看不见的因素一并吸收掉的做法']],
+        how: ['第一步：逐个问「还有没有别的东西会影响 Y？」', '第二步：再问一句「它会不会同时也影响 X？」——两个都答是的，必须控制', '第三步：控制在 3-5 个，太多会引发共线性'],
+        starter: '控制变量包括 ____ 、____ 和 ____。其中 ____ 同时影响 X 与 Y，若不控制会导致 β₁ 估计偏误；此外我还控制了地区与年份固定效应，以剔除不随时间变化的地区固有差异。'
+    },
+    '3-0': {
+        ask: '当 Y 和 X 的数据「粗细」不一样（一个季度、一个月度），你怎么把它们弄成同一套节奏？',
+        why: '回归要求每一行数据都对应同一个时间点。频度不一致，软件根本没法对齐观测值，强行跑出来的结果是错的。',
+        terms: [['降频', '把细数据合并成粗数据，比如月度取季度平均'], ['升频（插值）', '把粗数据补成细数据，相当于人为编造中间月份，慎用'], ['流量 vs 存量', '流量用平均（如消费），存量用期末值（如货币供应量）']],
+        how: ['第一步：确认哪个变量频度更低，就以它为目标', '第二步：判断高频变量是流量还是存量', '第三步：流量取期内平均，存量取期末值'],
+        starter: 'Y 为季度数据、X 为月度数据，我先将 ____ 在季度内取 ____ （均值/期末值），降频为季度后与 ____ 对齐。不采用插值升频，因为插值会人为引入平滑假设，扭曲真实波动。由于该变量属于 ____ （流量/存量），取 ____ 更为合适。'
+    },
+    '3-1': {
+        ask: '数据表上有空格怎么办——删掉那一行，还是想办法补上？',
+        why: '空格不处理，软件会自动丢样本，样本越丢越少、结论越不可信；处理方式选错则可能人为制造偏误。',
+        terms: [['随机缺失', '空格的出现与任何变量都无关，删掉影响不大'], ['非随机缺失', '空格本身就是有规律的（比如落后地区更常缺数据），此时删除会有偏误'], ['插值', '用前后年份的趋势推算中间缺失值']],
+        how: ['第一步：先数一下缺多少、缺在哪、有没有规律', '第二步：少量且随机 —— 直接删除该观测', '第三步：有规律或缺失较多 —— 线性插值/多重插补，并用「删除样本」做一次稳健性对比'],
+        starter: '缺失主要集中在 ____ 年份的 ____ 变量。我判断其为 ____ 缺失，因此采用 ____ 处理；同时在稳健性检验中改用删除缺失样本重估，确认结论不受填补方式影响。'
+    },
+    '3-2': {
+        ask: '要不要给变量取对数？取了有什么好处，什么时候不该取？',
+        why: '这一步直接决定你怎么向读者解释系数。取对数能把全国 GDP 和某县 GDP 这种量级差异压缩掉，还能让系数读成百分比。',
+        terms: [['对数化', '对变量取自然对数 ln'], ['弹性', 'X 变动 1% 时 Y 变动百分之几'], ['异方差', '扰动项波动幅度不一致，会让显著性判断失真']],
+        how: ['第一步：确认该变量取值恒为正（有 0 或负数就不能取）', '第二步：正值且量纲大的水平变量 —— 建议取对数', '第三步：本身已是增长率或比率的变量 —— 不用再取'],
+        starter: '对 ____ 取自然对数。理由有三：一是压缩量纲、削弱极端值影响；二是缓解右偏分布；三是系数可直接解释为弹性。____ 本身已是增长率，故不再取对数。'
+    },
+    '4-0': {
+        ask: '开跑回归之前，为什么要先检验数据是不是「平稳」？不检验会怎样？',
+        why: '这是前置检验的门栓。两个毫无关系的变量只要都在持续上升，回归也会给出很高的 R² 和显著的 t 值——这叫伪回归，结论完全虚假。不检验就跑，等于把论文建在沙子上。',
+        terms: [['平稳', '变量的统计特征（均值、方差）不随时间漂移'], ['单位根', '不平稳的数学表达，存在单位根即不平稳'], ['ADF 检验', '最常用的平稳性检验方法，看 p 值是否小于 0.05'], ['伪回归', '两个不相干的趋势变量跑出虚假的显著结果']],
+        how: ['第一步：明确「先检验、后回归」的顺序', '第二步：点出方法名——ADF 单位根检验', '第三步：说明不处理的后果——伪回归，或先差分再回归'],
+        starter: '时间序列回归前必须先做单位根检验，本研究的 ____ 与 ____ 均需通过 ADF 检验，p 值小于 ____ 方可视为平稳。若直接对非平稳序列回归，会出现伪回归——R² 与 t 值虚高却毫无因果含义；若存在单位根，则先 ____ （差分/检验协整）再进入回归。'
+    },
+    '4-1': {
+        ask: '解释变量之间「太像了」会出什么问题？用什么指标查出来？',
+        why: '变量高度相关时，各自的独立作用分不清，系数的波动被放大，本来显著的效果可能显示成不显著。',
+        terms: [['多重共线性', '解释变量之间高度线性相关'], ['VIF（方差膨胀因子）', '数值越大说明该变量越能被其他变量替代，通常大于 10 认为严重'], ['扰动手方差', '同一份数据换一小部分样本，估计结果就大幅跳动']],
+        how: ['第一步：点出后果——估计量方差膨胀、t 检验失效', '第二步：给出指标——VIF', '第三步：给出阈值与处理——大于 10 需处理，可删变量、降维或增大样本'],
+        starter: '多重共线性会使估计量 ____ ，导致 t 检验失效、系数符号紊乱且对样本敏感。我用 ____ （方差膨胀因子）检测，数值大于 ____ 视为严重共线性；届时优先剔除 ____ 变量，必要时采用 ____ 处理。此外我将同时使用 ____ 以缓解异方差对显著性判断的干扰。'
+    },
+    '4-2': {
+        ask: '把你的研究写成一行数学式子，并说明每个符号是什么意思。',
+        why: '方程是你研究设计的最终形态。式子写不出来，说明前面的 Y、X、控制变量还有没想清楚的地方。阶段四之后的所有计算都基于这一行字。',
+        terms: [['β₁ 核心系数', 'X 对 Y 的边际效应，整篇论文的目标'], ['μᵢ 个体固定效应', '每个地区/企业不随时间改变的特质'], ['λₜ 时间固定效应', '每一年大家共同受到的冲击'], ['εᵢₜ 随机扰动项', '未能解释的其余部分']],
+        how: ['第一步：左边写 Y，右边依次写 β₀、β₁X、控制变量', '第二步：面板数据要带双下标 i 和 t', '第三步：加上固定效应和扰动项，避免遗漏'],
+        starter: '模型设定为：____ = β₀ + β₁·____ + β₂·____ + μ_i + λ_t + ε_it。其中 β₁ 为核心系数，刻画 ____ 对 ____ 的边际效应；____ 为控制变量向量；μ_i 与 λ_t 分别为个体与时间固定效应，用于控制 ____ ；ε_it 为随机扰动项。'
+    },
+    '4-3': {
+        ask: '把系数和它的标准误代进公式，算出 t 统计量，看这个估计值离「零」有多远。',
+        why: '这一步是从「估计出了一个系数」走到「这个系数可不可信」的唯一通道。t 值不亲手算一遍，你就不知道软件给出的那一列数字到底意味着什么，也没法判断自己有没有把数字代错。',
+        terms: [['标准误 se', '这个系数估计得有多「不稳」，数值越小说明估计越精确'], ['t 统计量', '系数除以它的标准误，衡量估计值离零有多少个「不确定单位」'], ['原假设', '先默认「没有效应」，再用证据去推翻它']],
+        how: ['第一步：写出公式 t = 估计系数 ÷ 标准误', '第二步：代入本题数字算出结果', '第三步：对照临界值（5% 水平下约 1.96）判断大小'],
+        starter: 't = β̂₁ / se(β̂₁) = ____ ÷ ____ = ____。这个数值远大于 5% 显著性水平下的临界值 1.96，说明估计系数距离「零」很远，即 X 对 Y 的影响不太可能是随机波动造成的。'
+    },
+    '4-4': {
+        ask: '结果跑出来了，你怎么判断这个效应「真的存在」而不是巧合？判断之后，又该怎么用大白话向读者解释？',
+        why: '这是从数字到结论的最后一道关口。不看显著性就下结论，等于把随机波动当成研究发现；而只报显著、不解释大小，读者仍然不知道这个效应有多大用。',
+        terms: [['显著性水平 5%', '我们愿意接受的「误判风险」上限，对应临界值约 1.96'], ['拒绝原假设', '证据足够强，可以认定这个效应不是零'], ['经济显著性', '统计上显著不等于现实中重要，还要看效应有多大']],
+        how: ['第一步：比较 t 值与临界值，判断能否拒绝「无效应」', '第二步：说明拒绝之后能得到什么结论', '第三步：把统计结论翻译成现实含义——效应多大、意味着什么'],
+        starter: '已知 t = ____ ，大于 5% 显著性水平下的临界值 1.96，因此可以拒绝「____ 对 ____ 无影响」的原假设，认为 β₁ 在统计上显著为 ____。经济含义上，____ 每提高一个单位，____ 平均变动 ____ ，说明 ____ 确实具有促进作用。'
+    }
+};
+
 // 参考示例回答（按 阶段-题号 索引；仅初学者/进阶在多次尝试后可见）
 const EXAMPLE_ANSWERS = {
     '1-0': '示例：「数字普惠金融的发展是否促进了居民消费水平的提升？」——我关心数字金融这一新业态对居民消费的因果影响。',
@@ -506,6 +710,76 @@ const DG_ROLE_MAP = [
     { role: '机制变量', desc: '解释 X 通过什么渠道影响 Y', where: '依据你提出的传导路径去找，通常是中间环节的财务或行为指标', badge: 'M' },
     { role: '工具变量 IV', desc: '解决 X 与 Y 互相影响的双向因果问题', where: '找与 X 相关但不直接影响 Y 的外生变量：历史数据、地理变量、政策冲击', badge: 'IV' }
 ];
+
+// ====== 数据到手之后怎么用：从「下载的文件」走到「跑出回归结果」======
+// 学生最大的断点不是找不到数据，而是 CSV 躺在磁盘上不知道下一步干什么。
+const DG_USAGE_FLOW = [
+    {
+        n: '①', title: '原样归档，别在原文件上改',
+        do: '下载后立刻重命名成「来源_内容_起止时间」，例如 统计局_省级人均GDP_2010-2022.xlsx，单独存一个 raw/ 文件夹。',
+        out: '一份再也不动的原始数据。后面任何一步搞砸，都能回到这里重来。',
+        warn: '最常见的翻车：直接在下载文件里删删改改，一周后想核对口径时发现已经被自己覆盖了。'
+    },
+    {
+        n: '②', title: '建一张变量表（数据字典）',
+        do: '列出每个变量的：变量英文名、中文含义、来源、单位、频度、样本区间。',
+        out: '一页纸说清你手里到底有什么。论文第三章的「变量定义表」就是它的成品版。',
+        warn: '省这一步的代价通常是：写到实证章节才发现某个变量中途换过统计口径。'
+    },
+    {
+        n: '③', title: '整理成一张「一行一个研究对象-年份」的表',
+        do: '统计局的宽表（年份横排）要转成长表（每行一个 省份-年份）；多个来源的表分别整理成同样的结构。',
+        out: '每张表都有两个关键列：个体标识（省份代码/股票代码/家庭 id）和时间标识（年份/季度）。',
+        warn: '这一步做不干净，后面合并一定会错位——表现为某些省份的数据串到了别的省份上。'
+    },
+    {
+        n: '④', title: '按「个体 + 时间」两个键把多张表拼起来',
+        do: '用个体代码和年份做匹配键，逐个变量合并到主表。合并后立刻核对行数和缺失情况。',
+        out: '一张完整面板：每行一个「谁-哪一年」，每列一个变量。这就是回归的输入表。',
+        warn: '键必须对得上：统计局用六位行政区划代码，不能用省份名称匹配（"内蒙古自治区"和"内蒙古"会被当成两个地方）。'
+    },
+    {
+        n: '⑤', title: '清洗与构造（进入阶段三）',
+        do: '频度对齐 → 缺失值处理 → 对数化/缩尾/平减 → 生成你真正要用的变量。',
+        out: '可分析的干净面板。这时的 ln(Y)、X、控制变量才是方程里那几个符号的具体数值。',
+        warn: '平减不要忘：跨年的金额类变量要用价格指数去掉通胀，否则你量到的其实是物价上涨。'
+    },
+    {
+        n: '⑥', title: '跑回归并写成论文表格（进入阶段四）',
+        do: '先做前置检验，再逐列加入控制变量和固定效应跑出一列列的结果，最后导出成三线表。',
+        out: '基准回归表 + 稳健性检验表 + 机制检验表——论文里那几张核心表格就齐了。',
+        warn: '表格务必注明样本量与显著性星号含义；遗漏这两项是很常见的返工原因。'
+    }
+];
+
+// ====== 每个数据源「下载之后具体怎么用」======
+const DG_SOURCE_USAGE = {
+    '国家统计局 · 国家数据平台': '导出是 Excel 宽表（年份横排），先用 Excel 逆透视或 Python 的 melt 转成「省份-年份-数值」长表。注意六位行政区划代码，用它而不是省份名去和其他表合并。年度数据，季度/月度需切换到对应报表。',
+    '中国人民银行': '多用 Excel/PDF 双格式，优先取 Excel。金融数据常在同张表里混着「期末值」与「发生额」，小心别错用。月度序列进入阶段三后通常要做季节调整或取同比。',
+    '财政部': '财政收支多为月度累计值（年初至今），而回归通常需要当月流量，需自己做差分还原。中央/地方口径务必分清，混用会让 X 的口径前后不一致。',
+    '海关总署': '进出口数据按 HS 编码和国别发布，颗粒度很细——先按你的研究问题汇总到需要的层级。金额单位为美元，跨期比较需换算并平减。',
+    '商务部': '外资、对外投资数据常以新闻稿和统计快报形式发布，格式不统一，需要手工摘录整理。注意数据统计口径（含/不含金融业）常有变动。',
+    'CSMAR / Wind / 中经研究数据库': '导出 CSV 时务必勾选「带字段名」和股票代码格式（如 000001.SZ）。企业数据天然是面板，合并前先去重（同一公司同一年不能有两行）。退市/ST 公司的处理要提前定好规则。',
+    'AKShare（Python · 免费）': '接口直接返回 DataFrame，省去下载整理环节——适合批量拉取。缺点是字段偶有变动，写脚本时把取数日期记下来，方便复现。',
+    'Tushare（Python）': '需要 token 和积分；取数前先查接口的字段说明与单位。建议把每次的取数脚本连同版本号存档，论文复现时直接用。',
+    '巨潮资讯网': 'XBRL/财务数据可从巨潮数据接口批量获取，别手工翻几千份 PDF。若要提取文本做变量（如数字化关键词），记得把 PDF 先转文本再分词。',
+    '中国债券信息网 / 外汇交易中心': '收益率曲线类数据是「期限 × 日期」的二维结构，按你的研究取特定期限（如 10 年期）即可。日频数据用于月频回归需降频取均值或月末值。',
+    '工业和信息化部': '行业类数据（如增加值、产量）按行业代码发布，注意 2017 年前后行业分类标准有调整，跨期需对照转换。',
+    '农业农村部': '农产品价格多为日度/周度监测数据，进入模型前需降频；另注意部分指标是「集贸市场价格」而非生产者价格，口径有别。',
+    '国家能源局': '能源消费量多为实物量（吨标准煤等），与金额类变量同表时要注意单位不统一，避免量纲混用。',
+    '中国汽车工业协会': '产销数据按月发布且常有后期修订，若用于年度回归建议取年度汇总值而非十二月值。',
+    'CNNIC 中国互联网络信息中心': '互联网普及率通常按省发布、半年一次，频率较低；用于年度面板时可取年末值，并在文中说明这一点。',
+    '世界银行 WDI': '一次可勾选多个国家多个指标导出 CSV，非常适合跨国面板。注意部分指标缺失严重，先做缺失率筛查再决定样本国家范围。',
+    'IMF': 'WEO/IFS 数据适合宏观跨国研究；导出时留意单位是本币还是美元，跨国合并前统一折算。',
+    'OECD': '发达国家数据质量高但国家数少，适合做小样本精细分析。中国部分指标缺失或口径不同，慎用。',
+    'UN Comtrade': '贸易数据体量大，单次查询有行数限制，建议按年份分批导出再拼接。注意报告国与伙伴国的镜像数据可能不一致。',
+    'Google Dataset Search': '这是检索工具不是数据源——找到后务必回溯到发布机构，确认口径与更新时间，论文里要引原始来源。',
+    'CFPS 中国家庭追踪调查': '数据为多模块分卷，需要先按「家庭编码 + 个人编码」横向合并再跨年纵向合并。权重要按官方说明使用，遗漏加权会让估计不具代表性。',
+    'CGSS 中国综合社会调查': '截面数据（部分年份可拼接成混合截面），不支持同一个体跨年追踪。注意问卷条目在不同年份有增删，跨年合并前对照问卷。',
+    'CHFS 中国家庭金融调查': '申请周期长，尽早提交。数据层级多（家庭/个人/资产），先想清楚分析单位再决定聚合方式。',
+    '企查查 / 天眼查': '适合构建「政策冲击」「企业进入退出」等非结构化变量。批量导出有限制且数据存在滞后，重要变量建议对抽样部分人工核对。',
+    'Kaggle / 阿里天池': '适合练手和做方法演示，不能直接作为毕业论文的数据来源。若用于练习，重点是把流程跑通，正式研究仍要换权威数据。'
+};
 
 // ====== 阶段与问题定义 ======
 const stages = {
@@ -2138,6 +2412,8 @@ function renderDataGuideStage(stageNum) {
         <div class="dg-section-title"><span class="dg-sec-num">4</span>避坑清单<span class="dg-sec-sub">取数前必读</span></div>
         <div class="dg-pitfalls">${pitfalls}</div>
 
+        ${getDataUsageSectionHtml()}
+
         <div id="dynamicArea"></div>
         ${prog.completed ? getStageSummary(stageNum) : ''}
     `;
@@ -2153,12 +2429,47 @@ function renderDataGuideStage(stageNum) {
 function getSourcePurposeHtml(s) {
     const p = DG_SOURCE_PURPOSE[s.name];
     if (!p) return '';
+    const use = DG_SOURCE_USAGE[s.name];
     return `
         <div class="dg-purpose">
             <div class="dg-purpose-role"><span class="dg-role-chip">🎯 在回归里扮演：${p.role}</span></div>
             <div class="dg-purpose-why"><strong>为什么需要它：</strong>${p.why}</div>
             <div class="dg-purpose-row"><strong>适配什么选题：</strong>${p.fits}</div>
             <div class="dg-purpose-row"><strong>可直接取用的变量：</strong>${p.vars}</div>
+            ${use ? `<div class="dg-purpose-use"><strong>下载之后怎么用：</strong>${use}</div>` : ''}
+        </div>
+    `;
+}
+
+// 数据到手之后的完整用法区（从下载的文件走到跑出回归结果）
+function getDataUsageSectionHtml() {
+    const flowCards = DG_USAGE_FLOW.map(f => `
+        <div class="dg-usage-step">
+            <div class="dg-usage-n">${f.n}</div>
+            <div class="dg-usage-main">
+                <div class="dg-usage-title">${f.title}</div>
+                <div class="dg-usage-row"><span class="dg-usage-tag do">做什么</span>${f.do}</div>
+                <div class="dg-usage-row"><span class="dg-usage-tag out">产出什么</span>${f.out}</div>
+                <div class="dg-usage-row warn-row"><span class="dg-usage-tag warn">容易翻车</span>${f.warn}</div>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="dg-section-title"><span class="dg-sec-num">⑤</span>数据下载到手之后，下一步做什么<span class="dg-sec-sub">从一堆文件走到回归结果表</span></div>
+        <div class="dg-usage-intro">
+            找数据只是第一步。很多同学卡在这里不是因为找不到，而是 <b>CSV 躺在磁盘上不知道下一步干什么</b>。
+            下面这条流水线把「下载的文件」一路走到「论文里的回归结果表」，每一步都写清楚做什么、产出什么、哪里最容易出错。
+            前三步在这里完成，后两步分别对应<b>阶段三 数据清洗</b>和<b>阶段四 实证推演</b>。
+        </div>
+        <div class="dg-usage-flow">${flowCards}</div>
+        <div class="dg-usage-next">
+            <div class="dg-usage-next-head">🔗 和你前面已经确定的研究设计怎么对上</div>
+            <div class="dg-usage-next-body">
+                回到阶段一你写下的那个方程 <code>Y = β₀ + β₁X + β₂·控制变量 + ε</code>——
+                上面整条流水线的目的，就是让这个式子里的每一个符号，最终都对应到你表里的<b>某一列具体数字</b>。
+                任何一列对不上，就回到 ② 的变量表去补，而不是急着跑回归。
+            </div>
         </div>
     `;
 }
@@ -2624,9 +2935,10 @@ async function askQuestion(stageNum) {
     
     await addMsg('tutor', q.text);
 
-    // 初学者模式：提问后自动附概念讲解卡，避免因概念不清而卡住
-    if (currentLevel() === 'beginner' && (q.followUps || q.hint || q.concepts)) {
-        await addMsg('tutor', getConceptCardHtml(q), false);
+    // 初学者模式：每题自动展开「从零讲起」讲解卡——不等学生承认不懂就先讲清楚
+    if (currentLevel() === 'beginner') {
+        const card = getBeginnerCardHtml(stageNum, prog.qIdx);
+        if (card) await addMsg('tutor', card, false);
     }
 
     // 显示输入面板
@@ -2639,7 +2951,8 @@ function updateSubStep(sub) {
     });
 }
 
-function renderInputPanel(stageNum) {
+function renderInputPanel(stageNum, opts) {
+    opts = opts || {};
     const stage = stages[stageNum];
     const prog = state.progress[stageNum];
     const q = stage.questions[prog.qIdx];
@@ -2652,7 +2965,11 @@ function renderInputPanel(stageNum) {
     const exampleKey = q ? `${stageNum}-${prog.qIdx}` : null;
     const showExample = L && exampleKey && EXAMPLE_ANSWERS[exampleKey] && fails >= L.exampleAfter;
 
-    const helpHtml = showHint || showExample ? `
+    // 主动救助：检测到学生答不上来时直接铺开（不等他点按钮）
+    const rescue = !!opts.rescue;
+    const helpHtml = rescue
+        ? renderRescueBox(stageNum, prog.qIdx, { reason: opts.reason })
+        : (showHint || showExample ? `
         <div class="scaffold-box">
             ${showHint ? `<div class="scaffold-hint"><strong>💡 提示：</strong>${q.hint}</div>` : ''}
             ${showExample ? `
@@ -2662,7 +2979,7 @@ function renderInputPanel(stageNum) {
                 </details>
             ` : ''}
         </div>
-    ` : '';
+    ` : '');
 
     const area = $('dynamicArea');
     area.innerHTML = `
@@ -2696,7 +3013,15 @@ function renderInputPanel(stageNum) {
 
 // ====== 卡壳自动感知：作答框长时间无内容时，主动提供帮助入口 ======
 let inputIdleTimer = null;
-const IDLE_THRESHOLD_MS = 100000; // 100 秒无任何输入即提示
+// 闲置多久后主动伸出援手。初学者更短——他往往不知道自己该说什么，
+// 也不知道可以去问；等他自己开口求助，通常已经卡了很久。
+const IDLE_THRESHOLD_BY_LEVEL = { beginner: 40000, intermediate: 70000, advanced: 120000 };
+const IDLE_THRESHOLD_MS = 100000; // 未选择水平时的默认值
+
+function idleThresholdMs() {
+    const lv = currentLevel();
+    return (lv && IDLE_THRESHOLD_BY_LEVEL[lv]) || IDLE_THRESHOLD_MS;
+}
 
 function startIdleWatch(stageNum) {
     clearTimeout(inputIdleTimer);
@@ -2710,7 +3035,20 @@ function startIdleWatch(stageNum) {
         if (!ta2 || !tip) return;
         if ((ta2.value || '').trim().length > 0) return;
         tip.hidden = false;
-    }, IDLE_THRESHOLD_MS);
+        // 初学者额外再宽限一轮：仍无动静就直接把参考答案铺开，不等他点
+        if (currentLevel() === 'beginner') {
+            setTimeout(() => {
+                const ta3 = $('answerInput');
+                const tip3 = $('struggleTip');
+                if (!ta3 || !tip3 || tip3.hidden) return;
+                if ((ta3.value || '').trim().length > 0) return;
+                const preserved = ta3.value;
+                renderInputPanel(stageNum, { rescue: true, reason: '想不出来很正常，导师直接把答案讲给你' });
+                const ni = $('answerInput');
+                if (ni) ni.value = preserved;
+            }, 25000);
+        }
+    }, idleThresholdMs());
 }
 
 function hideIdleTip() {
@@ -2738,6 +3076,8 @@ function giveDirectAnswer(stageNum) {
 
     const exampleKey = `${stageNum}-${prog.qIdx}`;
     const example = EXAMPLE_ANSWERS[exampleKey];
+    // 从零讲起的完整讲解卡（此处答题框不存在，故不显示"填入"按钮）
+    const primerCard = getBeginnerCardHtml(stageNum, prog.qIdx, { noFill: true });
     // 概念讲解卡（是什么 / 怎么做 / 举个例子 / 为什么）
     const conceptCard = getConceptCardHtml(q).replace('（初学者模式自动展开）', '');
     const conceptsLine = (q.concepts || []).length
@@ -2755,8 +3095,9 @@ function giveDirectAnswer(stageNum) {
                 <div class="da-label">这一问到底要你答什么</div>
                 <div class="da-text">${q.hint || '把你当前对这一步的想法写出来即可，导师会针对你的回答继续引导。'}</div>
             </div>
+            ${primerCard}
             ${conceptsLine}
-            ${conceptCard}
+            ${primerCard ? '' : conceptCard}
             ${example ? `
             <div class="da-block da-example">
                 <div class="da-label">可以直接参考的回答</div>
@@ -2793,11 +3134,26 @@ async function submitAnswer(stageNum) {
     const ans = input.value.trim();
     
     if (!ans) { showToast('请输入你的回答', 'error'); return; }
-    
+
     const stage = stages[stageNum];
     const prog = state.progress[stageNum];
     const q = stage.questions[prog.qIdx];
-    
+
+    // 主动帮助：学生流露出「我不会」时，不等他开口求助，直接把台阶铺下来
+    if (q.validate && !q.validate(ans) && looksLikeGiveUp(ans)) {
+        prog.attempts = prog.attempts || [];
+        prog.attempts[prog.qIdx] = (prog.attempts[prog.qIdx] || 0) + 1;
+        saveState();
+        await addMsg('user', ans.replace(/\n/g, '<br>'));
+        await sleep(300);
+        await addMsg('tutor', '没关系，这一步本来就不容易想。我先把思路和参考答案给你，你照着自己的研究改一改就行，改完直接提交。');
+        const preserved = input.value;
+        renderInputPanel(stageNum, { rescue: true, reason: '没关系，这一步导师直接帮你' });
+        const newInput = $('answerInput');
+        if (newInput) newInput.value = preserved;
+        return;
+    }
+
     if (q.validate && !q.validate(ans)) {
         // 记录失败次数，用于按水平自动升级帮助（提示 → 参考示例）
         prog.attempts = prog.attempts || [];
@@ -2807,13 +3163,18 @@ async function submitAnswer(stageNum) {
 
         // 保留草稿并刷新输入面板（可能自动展开提示/示例）
         const preserved = input.value;
-        renderInputPanel(stageNum);
+        const lv = currentLevel();
+        // 初学者第一次不过关就直接给完整救助（提示 + 参考答案），不再逐级试探
+        const immediateRescue = lv === 'beginner' && fails >= 1;
+        renderInputPanel(stageNum, immediateRescue
+            ? { rescue: true, reason: '差一点点——导师把参考答案给你，照着改一改就好' }
+            : undefined);
         const newInput = $('answerInput');
         if (newInput) newInput.value = preserved;
 
         let extra = '';
-        const lv = currentLevel();
-        if (lv) {
+        if (immediateRescue) extra = '，已给出参考答案，改成你自己的研究即可';
+        else if (lv) {
             const L = LEVELS[lv];
             if (fails === L.hintAfter) extra = '，已为你自动展开提示';
             else if (fails === L.exampleAfter && EXAMPLE_ANSWERS[`${stageNum}-${prog.qIdx}`]) extra = '，可查看参考示例';
