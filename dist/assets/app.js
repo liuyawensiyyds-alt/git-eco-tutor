@@ -65,9 +65,9 @@ const LEVELS = {
         label: '初学者', icon: '🌱',
         shortDesc: '概念不清楚也能跟上',
         desc: '系统直接讲解概念，给出示例回答，手把手带你走。适合刚接触计量或基础概念模糊的同学。',
-        // 初学者：不设门槛——提问时即给提示，第一次答不上来就能看参考示例
-        hintAfter: 0, exampleAfter: 1,
-        showConceptCard: true,    // 题目下自动展开「问什么 / 为什么 / 怎么想 / 举个例子 / 回答要点」
+        // 初学者：首次提问界面保持简洁，只展示折叠的「从零讲起」；答错一次后自动展开提示与示例
+        hintAfter: 1, exampleAfter: 1,
+        showConceptCard: true,    // 题目下附带折叠的「问什么 / 为什么 / 怎么想 / 举个例子 / 回答要点」
         showAnswerPoints: true,   // 自动列出本题答题要点
         showScaffold: true,       // ✅ 主动求助：无需失败即可点「我没思路」，三级启发式脚手架
         idleHelpSeconds: 45,      // ✅ 空白停留 45 秒未动笔，导师主动开口提供帮助
@@ -282,8 +282,10 @@ function toggleStageLevelSwitch(btn) {
 // ====== 讲解卡：从零讲起（问什么 / 为什么问 / 怎么想 / 举个例子 / 回答要点） ======
 // 优先使用题目自带的 explain 五要素（逐题手写、最完整）；
 // 若题目尚未编写 explain，则自动从 followUps / hint / concepts 抽取，保证不出现空白卡。
+// 讲解卡：默认折叠，学生需要时自己点开，避免一屏弹出多个气泡
 function getConceptCardHtml(q) {
     const e = q.explain;
+    let body = '', title = '📖 从零讲起 · 本题讲解';
     if (e && (e.what || e.why)) {
         const rows = [
             ['🎯 这道题在问什么', e.what],
@@ -294,36 +296,35 @@ function getConceptCardHtml(q) {
         const pts = (e.points && e.points.length)
             ? `<div class="concept-points">✍️ 回答要点：${e.points.map(p => `「${p}」`).join(' ')}</div>`
             : '';
-        return `<div class="concept-card">
-            <div class="concept-card-title">📖 从零讲起 · 本题讲解</div>
-            ${rows.map(r => `<div class="concept-row"><span class="concept-tag">${r[0]}</span><span>${r[1]}</span></div>`).join('')}
-            ${pts}
-            <div class="concept-note">看不懂也没关系——先按上面的思路写一版；写不出来就点下方的「我没思路」，我会一步步带着你想。</div>
-        </div>`;
+        body = rows.map(r => `<div class="concept-row"><span class="concept-tag">${r[0]}</span><span>${r[1]}</span></div>`).join('') + pts +
+            `<div class="concept-note">看不懂也没关系——先按上面的思路写一版；写不出来就点下方的「我没思路」，我会一步步带着你想。</div>`;
+    } else {
+        // 回退：从题目的 followUps / hint / concepts 自动拼装
+        title = '📖 概念讲解';
+        const pick = re => {
+            if (!q.followUps) return null;
+            for (const [pattern, resp] of Object.entries(q.followUps)) {
+                if (new RegExp(re).test(pattern)) return resp;
+            }
+            return null;
+        };
+        const def = pick('什么|定义');
+        const how = pick('怎么|如何');
+        const why = pick('为什么|为何');
+        const eg = pick('例子|举例');
+        const points = (q.concepts || []).map(c => c.missing);
+        if (def) body += `<div class="concept-row"><span class="concept-tag">是什么</span><span>${def}</span></div>`;
+        if (how) body += `<div class="concept-row"><span class="concept-tag">怎么做</span><span>${how}</span></div>`;
+        if (eg) body += `<div class="concept-row"><span class="concept-tag">举个例子</span><span>${eg}</span></div>`;
+        else if (q.hint) body += `<div class="concept-row"><span class="concept-tag">提示</span><span>${q.hint}</span></div>`;
+        if (why) body += `<div class="concept-row"><span class="concept-tag">为什么</span><span>${why}</span></div>`;
+        if (points.length) body += `<div class="concept-points">✍️ 回答要点：${points.map(p => `「${p}」`).join(' ')}</div>`;
     }
-    // 回退：从题目的 followUps / hint / concepts 自动拼装
-    const pick = re => {
-        if (!q.followUps) return null;
-        for (const [pattern, resp] of Object.entries(q.followUps)) {
-            if (new RegExp(re).test(pattern)) return resp;
-        }
-        return null;
-    };
-    const def = pick('什么|定义');
-    const how = pick('怎么|如何');
-    const why = pick('为什么|为何');
-    const eg = pick('例子|举例');
-    const points = (q.concepts || []).map(c => c.missing);
-    let html = `<div class="concept-card">
-        <div class="concept-card-title">📖 概念讲解（初学者模式自动展开）</div>`;
-    if (def) html += `<div class="concept-row"><span class="concept-tag">是什么</span><span>${def}</span></div>`;
-    if (how) html += `<div class="concept-row"><span class="concept-tag">怎么做</span><span>${how}</span></div>`;
-    if (eg) html += `<div class="concept-row"><span class="concept-tag">举个例子</span><span>${eg}</span></div>`;
-    else if (q.hint) html += `<div class="concept-row"><span class="concept-tag">提示</span><span>${q.hint}</span></div>`;
-    if (why) html += `<div class="concept-row"><span class="concept-tag">为什么</span><span>${why}</span></div>`;
-    if (points.length) html += `<div class="concept-points">✍️ 回答要点：${points.map(p => `「${p}」`).join(' ')}</div>`;
-    html += `</div>`;
-    return html;
+    if (!body) return '';
+    return `<details class="concept-card-details">
+        <summary>${title} <span class="concept-summary-hint">（点这里看）</span></summary>
+        <div class="concept-card-body">${body}</div>
+    </details>`;
 }
 
 // 参考示例回答（按 阶段-题号 索引；仅初学者/进阶在多次尝试后可见）
@@ -2555,20 +2556,16 @@ function completeDataGuide(stageNum) {
 async function restoreDialogue(stageNum) {
     const prog = state.progress[stageNum];
     const stage = stages[stageNum];
-    const area = $('dialogueArea');
-    
-    // 恢复历史问答
+
+    // 恢复历史问答（历史只保留问题和答案，不显示旧的反馈气泡，保持界面简洁）
     for (let i = 0; i < prog.qIdx; i++) {
         const q = stage.questions[i];
-        // 导师问题
-        await addMsg('tutor', q.text, false);
+        // 导师问题（历史题目不再附带展开的概念卡）
+        await addMsg('tutor', `<div class="tutor-question">${q.text}</div>`, false);
         // 学生回答
         if (prog.answers[i]) {
             await addMsg('user', prog.answers[i].replace(/\n/g, '<br>'), false);
         }
-        // 导师反馈
-        const feedback = getFeedback(stageNum, i);
-        await addMsg('tutor', feedback, false);
     }
 }
 
@@ -2604,24 +2601,33 @@ async function addMsg(role, html, withTyping = true) {
 }
 
 // ====== 提问 ======
-async function askQuestion(stageNum) {
+// preface：上一题答对后的即时反馈（合并到同一气泡，避免弹多个对话框）
+async function askQuestion(stageNum, preface = '') {
     const stage = stages[stageNum];
     const prog = state.progress[stageNum];
     const q = stage.questions[prog.qIdx];
-    
+
     if (!q) return;
-    
+
     // 阶段4子步骤更新
     if (stageNum === 4 && q.subStep) {
         updateSubStep(q.subStep);
     }
-    
-    await addMsg('tutor', q.text);
 
-    // 初学者模式：提问后自动附概念讲解卡，避免因概念不清而卡住
-    if (currentLevel() === 'beginner' && (q.followUps || q.hint || q.concepts)) {
-        await addMsg('tutor', getConceptCardHtml(q), false);
+    // 把反馈、问题、折叠讲解卡合并成一个导师气泡
+    let html = '';
+    if (preface) {
+        html += `<div class="tutor-preface">${preface}</div>`;
     }
+    html += `<div class="tutor-question">${q.text}</div>`;
+
+    // 初学者模式：默认折叠的概念讲解卡，不展开，避免占用屏幕
+    if (currentLevel() === 'beginner' && (q.explain || q.followUps || q.hint || q.concepts)) {
+        const card = getConceptCardHtml(q);
+        if (card) html += card;
+    }
+
+    await addMsg('tutor', html);
 
     // 显示输入面板
     renderInputPanel(stageNum);
@@ -2641,14 +2647,19 @@ function renderInputPanel(stageNum) {
     const L = lv ? LEVELS[lv] : null;
     const fails = (prog.attempts && prog.attempts[prog.qIdx]) || 0;
 
-    // 按水平与失败次数决定是否自动展开提示 / 参考示例
+    // 按水平与失败次数决定是否给出提示 / 参考示例；默认折叠，避免初次界面臃肿
     const showHint = L && q && q.hint && fails >= L.hintAfter;
     const exampleKey = q ? `${stageNum}-${prog.qIdx}` : null;
     const showExample = L && exampleKey && EXAMPLE_ANSWERS[exampleKey] && fails >= L.exampleAfter;
 
     const helpHtml = showHint || showExample ? `
         <div class="scaffold-box">
-            ${showHint ? `<div class="scaffold-hint"><strong>💡 提示：</strong>${q.hint}</div>` : ''}
+            ${showHint ? `
+                <details class="scaffold-hint-fold">
+                    <summary>💡 需要一点方向？点这里看提示</summary>
+                    <div class="scaffold-hint-body">${q.hint}</div>
+                </details>
+            ` : ''}
             ${showExample ? `
                 <details class="scaffold-example">
                     <summary>👀 查看参考示例回答（请结合自己的研究改写后再提交）</summary>
@@ -2861,27 +2872,26 @@ async function submitAnswer(stageNum) {
     
     // 显示用户回答
     await addMsg('user', ans.replace(/\n/g, '<br>'));
-    
-    // 导师反馈
+
+    // 准备下一题的引导语（与下一题合并成一个气泡，避免弹多个对话框）
     await sleep(400);
     const feedback = getFeedback(stageNum, prog.qIdx);
-    await addMsg('tutor', feedback);
-    
+
     // 记录研究设计信息
     if (q.recordKey) {
         if (stageNum === 1) state.researchDesign[q.recordKey] = ans;
     }
-    
+
     prog.qIdx++;
     saveState();
-    
+
     // 判断是否完成
     if (prog.qIdx >= stage.questions.length) {
         await sleep(500);
         completeStage(stageNum);
     } else {
         await sleep(400);
-        await askQuestion(stageNum);
+        await askQuestion(stageNum, feedback);
     }
 }
 
