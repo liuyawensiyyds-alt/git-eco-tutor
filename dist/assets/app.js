@@ -16,6 +16,8 @@ const defaultState = {
         4: { completed: false, qIdx: 0, answers: [], helpExchanges: [], hintsUsed: 0, startTime: null, completeTime: null, lastAccess: null }
     },
     researchDesign: { question: '', varY: '', varX: '', controls: '' },
+    // 阶段三产出：可用数据集（变量清单 + 数据行），可导出 Excel
+    dataset: { vars: [], rows: [], raw: '', checkedAt: null },
     level: null,          // 'beginner' | 'intermediate' | 'advanced' | null（未选择）
     levelHistory: [],     // 水平变更记录 [{from, to, time}]
     currentStage: null,
@@ -23,6 +25,8 @@ const defaultState = {
 };
 
 let state = loadState();
+// 兼容旧存档：补全 dataset 字段
+if (!state.dataset) state.dataset = { vars: [], rows: [], raw: '', checkedAt: null };
 
 function loadState() {
     try {
@@ -784,38 +788,13 @@ const stages = {
                 '行政非公开数据（爬虫爬不到）只能走信息公开申请，预留 2–4 周，并准备公开替代指标',
                 '上市公司数据匹配：股票代码是唯一标识，两张表用 VLOOKUP/XLOOKUP 合并'
             ],
-            // ====== 数据到手之后怎么用：从原始下载到能跑回归 ======
+            // ====== 数据到手之后怎么用（紧凑清单：做什么 / 为什么） ======
             usage: [
-                {
-                    title: '第一步 · 核对口径与单位',
-                    do: '打开刚下载的文件，先看三件事：①单位（亿元 / 万元 / 美元现价）；②时间范围是否覆盖你的研究区间；③口径说明——是累计值还是当季值、是否季节调整、是现价还是不变价。',
-                    why: '这一步错了后面全错。把「累计值」当成「当季值」，会画出一条虚假的单调上升曲线；用现价 GDP 讨论实际增长，结论会被通胀带偏。',
-                    pitfall: '季度数据常有「累计」和「当季」两列，别拿错；GDP 必须用不变价或实际增速讨论真实增长。'
-                },
-                {
-                    title: '第二步 · 建立变量清单（数据字典）',
-                    do: '用一张表逐个登记你的变量：变量名、经济学含义、单位、频度、数据来源、时间范围、缺失情况。这就是阶段三要提交的数据字典的底稿。',
-                    why: '数据字典既是后续所有处理的依据，也是论文里「数据来源与变量说明」那一节的现成素材。提前建好，还能及早发现哪个变量根本拿不到。',
-                    pitfall: '变量名请用英文短名且不带空格（如 ln_gdp、dif_index），中文名或含空格的变量名在 Stata / Python 里容易报错。'
-                },
-                {
-                    title: '第三步 · 面板拼接与匹配',
-                    do: '先确定唯一标识（省份代码 / 股票代码 / 个人 ID），再按「标识 + 年份」把多张表横向合并：Excel 用 XLOOKUP，Stata 用 merge，Python 用 pd.merge。目标是拼成「个体—年份—各变量」的宽表面板。',
-                    why: '每个来源通常只提供一个变量的多年数据，只有拼成面板，才能控制个体与时间差异、做固定效应回归。',
-                    pitfall: '合并后一定要检查匹配率（Stata 的 _merge、Python 的 indicator）。大量未匹配，通常是代码格式不一致：文本型 vs 数值型、前后带空格、代码位数不同。'
-                },
-                {
-                    title: '第四步 · 构造你真正要的经济学变量',
-                    do: '按研究设计把原始数据加工成变量：总量除以人口得到人均值；构造比值型指标（如贷款余额/GDP 衡量金融深度）；对正值且跨度大的变量取对数；政策类变量构造 0/1 处理组虚拟变量与政策前后时间虚拟变量。',
-                    why: '网站下载的原始数据往往不是你要研究的那个经济学概念。研究「金融发展」，需要的是「贷款/GDP」这个相对指标，而不是贷款总额——后者会被地区规模本身主导。',
-                    pitfall: '这一步只做「变量定义层面」的构造，不要顺手做缺失值填补或频度对齐——那是阶段三的正式内容，混在一起会理不清。'
-                },
-                {
-                    title: '第五步 · 交给阶段三清洗，再进阶段四回归',
-                    do: '导出一份原始面板（CSV / Excel）并连同数据字典，进入阶段三做频度对齐、缺失值处理与变量转换；拿到规范数据集后，再进阶段四做前置检验、写方程、看显著性。',
-                    why: '顺序不能颠倒：没有规范的数据字典就谈检验与估计，得到的显著性是空中楼阁。跳过清洗直接回归，是本科生论文最常见也最致命的错误。',
-                    pitfall: '务必保留原始数据副本，每一次处理都另存为新文件，保证分析过程可复现、可回溯。'
-                }
+                { do: '确认单位、时间范围、累计值还是当季值', why: '拿错列会画出虚假趋势，后面全错' },
+                { do: '登记变量名、含义、单位、频度、来源、缺失', why: '就是论文「变量说明」那节的素材' },
+                { do: '按「省份代码/股票代码 + 年份」横向合并成面板', why: '拼成面板才能做固定效应回归' },
+                { do: '人均值、比值指标、正值取对数、政策 0/1 虚拟变量', why: '下载的数据常不是你要研究的那个概念' },
+                { do: '导出原始面板，进阶段三做频度对齐与缺失处理', why: '跳过清洗直接回归是最致命的错误' }
             ],
             // 数据最终会变成论文里的什么
             outcomes: [
@@ -1436,6 +1415,7 @@ async function renderStage(stageNum) {
         ${levelChipBarHtml()}
         ${subStepsHtml}
         <div class="dialogue-area" id="dialogueArea"></div>
+        ${stageNum === 3 ? `<div id="datasetWorkbench">${datasetWorkbenchHtml()}</div>` : ''}
         <div id="dynamicArea"></div>
         ${summaryHtml}
     `;
@@ -2036,18 +2016,19 @@ function renderDataGuideStage(stageNum) {
                         <div class="dg-card-how"><strong>取数路径：</strong>${s.how}</div>
                         ${s.steps ? `
                         <details class="dg-steps">
-                            <summary>📋 分步操作指南（点哪里 / 找什么 / 为什么）</summary>
-                            <ol class="dg-step-list">
+                            <summary>📋 去哪找 · 找什么 · 为什么要找</summary>
+                            <div class="dg-step-table">
+                                <div class="dg-st-head"><div>操作</div><div>去哪找</div><div>找什么</div><div>为什么</div></div>
                                 ${s.steps.map(st => `
-                                    <li>
-                                        <div class="dg-step-act">▸ ${st.act}</div>
-                                        ${st.where ? `<div class="dg-step-where">📍 位置：${st.where}</div>` : ''}
-                                        ${st.find ? `<div class="dg-step-find">🔍 找什么：${st.find}</div>` : ''}
-                                        ${st.why ? `<div class="dg-step-why">💡 为什么：${st.why}</div>` : ''}
-                                    </li>
+                                    <div class="dg-st-row">
+                                        <div class="dg-st-act">${st.act}</div>
+                                        <div class="dg-st-where">${st.where || '—'}</div>
+                                        <div class="dg-st-find">${st.find || '—'}</div>
+                                        <div class="dg-st-why">${st.why || '—'}</div>
+                                    </div>
                                 `).join('')}
-                            </ol>
-                            ${s.indicators ? `<div class="dg-step-indicators"><strong>📊 常见指标举例：</strong>${s.indicators}</div>` : ''}
+                            </div>
+                            ${s.indicators ? `<div class="dg-step-indicators"><strong>📊 常见指标：</strong>${s.indicators}</div>` : ''}
                             ${s.pitfall ? `<div class="dg-step-pitfall"><strong>⚠️ 避坑：</strong>${s.pitfall}</div>` : ''}
                         </details>
                         ` : ''}
@@ -2119,21 +2100,18 @@ function renderDataGuideStage(stageNum) {
         <div class="dg-pitfalls">${pitfalls}</div>
 
         ${g.usage ? `
-        <div class="dg-section-title"><span class="dg-sec-num">5</span>数据到手之后怎么用<span class="dg-sec-sub">从下载的文件，到能跑回归的数据集</span></div>
-        <div class="dg-usage-intro">很多同学卡在这里：数据下载了一堆，却不知道下一步该干什么。下面这五步，就是把「下载的文件」变成「论文里的实证结果」的完整路径。</div>
-        <div class="dg-usage">
+        <div class="dg-section-title"><span class="dg-sec-num">5</span>数据到手之后做什么<span class="dg-sec-sub">五步，把下载的文件变成能跑回归的数据</span></div>
+        <div class="dg-usage-compact">
+            <div class="dg-uc-head"><div>#</div><div>做什么</div><div>为什么</div></div>
             ${g.usage.map((u, i) => `
-                <div class="dg-usage-item">
-                    <div class="dg-usage-head">
-                        <span class="dg-usage-num">${i + 1}</span>
-                        <span class="dg-usage-title">${u.title}</span>
-                    </div>
-                    <div class="dg-usage-row"><span class="dg-usage-tag do">做什么</span>${u.do}</div>
-                    <div class="dg-usage-row"><span class="dg-usage-tag why">为什么</span>${u.why}</div>
-                    <div class="dg-usage-row"><span class="dg-usage-tag warn">避坑</span>${u.pitfall}</div>
+                <div class="dg-uc-row">
+                    <div class="dg-uc-num">${i + 1}</div>
+                    <div class="dg-uc-do">${u.do}</div>
+                    <div class="dg-uc-why">${u.why}</div>
                 </div>
             `).join('')}
         </div>
+        <div class="dg-usage-foot">下一步：进入<span class="dg-foot-hl">阶段三 · 数据清洗</span>，把这张原始面板整理成规范数据集，并一键导出可用的 Excel 表格。</div>
         ${g.outcomes ? `
         <div class="dg-outcome-title">🧭 你手上的数据，最终会变成论文里的哪张表</div>
         <div class="dg-outcomes">
@@ -2179,6 +2157,337 @@ function renderGuideCompletePanel(stageNum) {
             </div>
         </div>
     `;
+}
+
+// ====== 阶段三：可用数据集工作台（整理 → 校验 → 导出 Excel） ======
+const DW_FIELDS = [
+    { key: 'name', ph: '变量名', w: '1fr' },
+    { key: 'meaning', ph: '含义（Y/X/控制）', w: '1.6fr' },
+    { key: 'unit', ph: '单位', w: '.9fr' },
+    { key: 'freq', ph: '频度', w: '.8fr' },
+    { key: 'source', ph: '数据来源', w: '1.4fr' }
+];
+
+function dwEsc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function datasetWorkbenchHtml() {
+    const ds = state.dataset;
+    const vars = ds.vars || [];
+    const rows = ds.rows || [];
+    const chk = ds.check || null;
+
+    const varRows = vars.length ? vars.map((v, i) => `
+        <div class="dw-var-row">
+            ${DW_FIELDS.map(f => `<input class="dw-in" style="flex:${f.w}" value="${dwEsc(v[f.key] || '')}" placeholder="${f.ph}" onchange="dwUpdateVar(${i},'${f.key}',this.value)">`).join('')}
+            <button class="dw-del" title="删除该变量" onclick="dwRemoveVar(${i})">×</button>
+        </div>
+    `).join('') : `<div class="dw-empty">还没有变量。点「从研究设计带入」自动生成 Y / X / 控制变量清单。</div>`;
+
+    let previewHtml = '';
+    if (rows.length) {
+        const head = vars.map(v => v.name || '—');
+        const show = rows.slice(0, 8);
+        previewHtml = `
+            <div class="dw-preview">
+                <div class="dw-preview-head">
+                    <span>已解析 <b>${rows.length}</b> 行 × <b>${vars.length || 0}</b> 列</span>
+                    <span class="dw-preview-more">${rows.length > 8 ? `（仅预览前 8 行，导出含全部）` : ''}</span>
+                </div>
+                <div class="dw-table-wrap">
+                    <table class="dw-table">
+                        <thead><tr>${head.map(h => `<th>${dwEsc(h)}</th>`).join('')}</tr></thead>
+                        <tbody>${show.map(r => `<tr>${head.map((_, i) => `<td>${dwEsc(r[i] == null ? '' : r[i])}</td>`).join('')}</tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    let checkHtml = '';
+    if (chk && chk.issues && chk.issues.length) {
+        checkHtml = `
+            <div class="dw-check">
+                <div class="dw-check-title">🔍 数据体检</div>
+                ${chk.issues.map(it => `<div class="dw-check-item ${it.level}"><span class="dw-check-dot"></span>${dwEsc(it.text)}</div>`).join('')}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="dw-box">
+            <div class="dw-head">
+                <div class="dw-head-icon">📊</div>
+                <div>
+                    <div class="dw-title">可用数据集工作台</div>
+                    <div class="dw-sub">整理变量清单 → 粘贴数据 → 自动体检 → 导出可直接跑回归的 Excel</div>
+                </div>
+            </div>
+
+            <div class="dw-step"><span class="dw-step-num">1</span><span class="dw-step-text">变量清单（数据字典）</span></div>
+            <div class="dw-var-head">
+                ${DW_FIELDS.map(f => `<div style="flex:${f.w}">${f.ph}</div>`).join('')}
+                <div style="width:26px"></div>
+            </div>
+            <div class="dw-var-list">${varRows}</div>
+            <div class="dw-inline-actions">
+                <button class="btn-secondary dw-btn-sm" onclick="dwSyncFromDesign()">从研究设计带入</button>
+                <button class="btn-secondary dw-btn-sm" onclick="dwAddVar()">+ 添加变量</button>
+            </div>
+
+            <div class="dw-step"><span class="dw-step-num">2</span><span class="dw-step-text">粘贴数据（从 Excel 直接复制即可）</span></div>
+            <textarea id="dwDataInput" class="dw-textarea" rows="6" placeholder="在 Excel 里选中含表头的数据区域 → 复制 → 粘贴到这里&#10;第一行为变量名，第一列建议放个体标识（省份/股票代码），第二列放年份">${dwEsc(ds.raw || '')}</textarea>
+            <div class="dw-inline-actions">
+                <button class="btn-primary dw-btn-sm" onclick="dwParse()">解析并体检</button>
+                <button class="btn-secondary dw-btn-sm" onclick="dwDownloadTemplate()">下载空白模板</button>
+                <span class="dw-hint">支持 Tab / 逗号分隔，缺失格留空</span>
+            </div>
+
+            ${previewHtml}
+            ${checkHtml}
+
+            <div class="dw-export">
+                <button class="btn-primary" onclick="dwExportExcel()" ${rows.length ? '' : 'disabled'}>📥 导出 Excel（数据 + 数据字典）</button>
+                <button class="btn-secondary" onclick="dwExportCsv()" ${rows.length ? '' : 'disabled'}>导出 CSV</button>
+                <span class="dw-hint">${rows.length ? '可直接用 Stata / Python / EViews 打开' : '粘贴并解析数据后即可导出'}</span>
+            </div>
+        </div>
+    `;
+}
+
+function dwRefresh() {
+    const box = $('datasetWorkbench');
+    if (!box) return;
+    box.innerHTML = datasetWorkbenchHtml();
+}
+
+function dwUpdateVar(i, key, val) {
+    if (!state.dataset.vars[i]) return;
+    state.dataset.vars[i][key] = val;
+    saveState();
+}
+
+function dwAddVar() {
+    state.dataset.vars.push({ name: '', meaning: '', unit: '', freq: '', source: '' });
+    saveState();
+    dwRefresh();
+}
+
+function dwRemoveVar(i) {
+    state.dataset.vars.splice(i, 1);
+    // 同步删除对应数据列
+    state.dataset.rows = (state.dataset.rows || []).map(r => r.filter((_, c) => c !== i));
+    state.dataset.check = null;
+    saveState();
+    dwRefresh();
+}
+
+function dwSyncFromDesign() {
+    const rd = state.researchDesign || {};
+    const mk = (name, meaning) => ({ name, meaning, unit: '', freq: '', source: '' });
+    const list = [];
+    if (rd.varY) list.push(mk(dwVarName(rd.varY, 'y'), `被解释变量 Y：${rd.varY}`));
+    if (rd.varX) list.push(mk(dwVarName(rd.varX, 'x'), `核心解释变量 X：${rd.varX}`));
+    (rd.controls ? String(rd.controls).split(/[,，、;；]/) : []).forEach((c, i) => {
+        const t = c.trim();
+        if (t) list.push(mk(dwVarName(t, `c${i + 1}`), `控制变量：${t}`));
+    });
+    if (!list.length) { showToast('还没做研究设计，先完成阶段一再带入', 'error'); return; }
+    // 保留已填写的元信息（按变量名匹配）
+    const old = state.dataset.vars || [];
+    state.dataset.vars = list.map(v => {
+        const hit = old.find(o => o.name === v.name);
+        return hit ? { ...v, ...{ unit: hit.unit, freq: hit.freq, source: hit.source } } : v;
+    });
+    saveState();
+    dwRefresh();
+    showToast(`已带入 ${list.length} 个变量`, 'success');
+}
+
+function dwVarName(label, fallback) {
+    const s = String(label).replace(/\(.*?\)/g, '').replace(/[^\w\u4e00-\u9fa5]/g, '').slice(0, 12);
+    return s || fallback;
+}
+
+function dwSplitLine(line, d) {
+    const out = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { inQ = !inQ; continue; }
+        if (c === d && !inQ) { out.push(cur.trim()); cur = ''; continue; }
+        cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+}
+
+function dwParse() {
+    const el = $('dwDataInput');
+    const raw = el ? el.value : '';
+    state.dataset.raw = raw;
+    if (!raw.trim()) { showToast('请先粘贴数据（含表头）', 'error'); return; }
+
+    const lines = raw.split(/\r?\n/).filter(l => l.trim() !== '');
+    const d = (lines[0].match(/\t/g) || []).length >= (lines[0].match(/,/g) || []).length ? '\t' : ',';
+    const header = dwSplitLine(lines[0], d);
+    const body = lines.slice(1).map(l => dwSplitLine(l, d));
+
+    // 用表头同步变量清单（保留已有元信息）
+    const old = state.dataset.vars || [];
+    state.dataset.vars = header.map(h => {
+        const hit = old.find(o => o.name === h);
+        return hit || { name: h, meaning: '', unit: '', freq: '', source: '' };
+    });
+    const n = header.length;
+    state.dataset.rows = body.map(r => (r.length >= n ? r.slice(0, n) : r.concat(Array(n - r.length).fill(''))));
+    state.dataset.check = dwRunCheck(state.dataset.vars, state.dataset.rows);
+    saveState();
+    dwRefresh();
+    showToast(`已解析 ${state.dataset.rows.length} 行 × ${n} 列`, 'success');
+}
+
+function dwRunCheck(vars, rows) {
+    const issues = [];
+    if (!rows.length) return { issues };
+    const n = rows.length;
+
+    // 缺失
+    vars.forEach((v, i) => {
+        const miss = rows.filter(r => r[i] === '' || r[i] == null).length;
+        if (!miss) return;
+        const pct = (miss / n * 100);
+        issues.push({
+            level: pct > 10 ? 'warn' : 'info',
+            text: `「${v.name || '第' + (i + 1) + '列'}」缺失 ${miss} 个观测（${pct.toFixed(1)}%）${pct > 10 ? '——缺失偏多，考虑插值或说明缺失机制' : ''}`
+        });
+    });
+
+    // 数值列：0 或负值（取对数风险）
+    vars.forEach((v, i) => {
+        const nums = rows.map(r => r[i]).filter(x => x !== '' && x != null && !isNaN(Number(x))).map(Number);
+        if (nums.length < n * 0.8) return;
+        const bad = nums.filter(x => x <= 0).length;
+        if (bad) issues.push({ level: 'warn', text: `「${v.name || '第' + (i + 1) + '列'}」有 ${bad} 个 ≤0 的值，直接取对数会报错（可用 ln(x+1) 或平移处理）` });
+    });
+
+    // 频度：找年份列
+    const yi = vars.findIndex(v => /year|年份|年$/i.test(v.name || ''));
+    if (yi >= 0) {
+        const ys = [...new Set(rows.map(r => r[yi]).filter(x => x !== ''))];
+        const nums = ys.map(Number).filter(x => !isNaN(x)).sort((a, b) => a - b);
+        if (nums.length > 1) {
+            const gaps = [];
+            for (let k = 1; k < nums.length; k++) if (nums[k] - nums[k - 1] !== 1) gaps.push(`${nums[k - 1]}→${nums[k]}`);
+            issues.push({ level: 'info', text: `年份范围 ${nums[0]}–${nums[nums.length - 1]}，共 ${nums.length} 个时间点${gaps.length ? `，存在间断：${gaps.join('、')}` : '，连续无缺失'}` });
+        }
+    }
+
+    // 个体标识列
+    if (vars.length >= 2) {
+        const ids = [...new Set(rows.map(r => r[0]).filter(x => x !== ''))];
+        issues.push({ level: 'info', text: `第一列「${vars[0].name || '标识'}」有 ${ids.length} 个不同个体${vars.length >= 2 && yi >= 0 ? `，样本量 ${n} 观测` : ''}` });
+    }
+
+    if (!issues.length) issues.push({ level: 'ok', text: '未发现明显问题，可以进入阶段四回归' });
+    return { issues, time: Date.now() };
+}
+
+function dwBuildXls(sheets) {
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'
+        + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" '
+        + 'xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+        + '<Styles><Style ss:ID="hdr"><Font ss:Bold="1"/><Interior ss:Color="#DDEBF7" ss:Pattern="Solid"/></Style></Styles>';
+    sheets.forEach(sh => {
+        xml += `<Worksheet ss:Name="${dwEsc(sh.name).slice(0, 28)}"><Table>`;
+        sh.rows.forEach((row, ri) => {
+            xml += '<Row>';
+            row.forEach(cell => {
+                const s = cell == null ? '' : String(cell);
+                const isNum = s !== '' && !isNaN(Number(s));
+                if (isNum) xml += `<Cell><Data ss:Type="Number">${s}</Data></Cell>`;
+                else xml += `<Cell${ri === 0 ? ' ss:StyleID="hdr"' : ''}><Data ss:Type="String">${dwEsc(s)}</Data></Cell>`;
+            });
+            xml += '</Row>';
+        });
+        xml += '</Table></Worksheet>';
+    });
+    xml += '</Workbook>';
+    return xml;
+}
+
+function dwDownload(content, filename, mime) {
+    const blob = new Blob([content], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+
+function dwFileName(ext) {
+    const nm = (state.student && state.student.name) ? state.student.name : '我的研究';
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    return `可用数据集_${nm}_${stamp}.${ext}`;
+}
+
+function dwDataSheetRows() {
+    const ds = state.dataset;
+    const head = (ds.vars || []).map(v => v.name || '');
+    return [head].concat(ds.rows || []);
+}
+
+function dwDictSheetRows() {
+    const ds = state.dataset;
+    const rows = ds.rows || [];
+    const head = ['变量名', '含义', '单位', '频度', '数据来源', '观测数', '缺失数'];
+    const body = (ds.vars || []).map((v, i) => {
+        const miss = rows.filter(r => r[i] === '' || r[i] == null).length;
+        return [v.name || '', v.meaning || '', v.unit || '', v.freq || '', v.source || '', rows.length, miss];
+    });
+    return [head].concat(body);
+}
+
+function dwExportExcel() {
+    const ds = state.dataset;
+    if (!(ds.rows || []).length) { showToast('还没有数据可导出', 'error'); return; }
+    const xml = dwBuildXls([
+        { name: '数据', rows: dwDataSheetRows() },
+        { name: '数据字典', rows: dwDictSheetRows() }
+    ]);
+    dwDownload(xml, dwFileName('xls'), 'application/vnd.ms-excel');
+    showToast('已导出 Excel（含数据字典）', 'success');
+}
+
+function dwExportCsv() {
+    const ds = state.dataset;
+    if (!(ds.rows || []).length) { showToast('还没有数据可导出', 'error'); return; }
+    const esc = c => {
+        const s = c == null ? '' : String(c);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = '\ufeff' + dwDataSheetRows().map(r => r.map(esc).join(',')).join('\r\n');
+    dwDownload(csv, dwFileName('csv'), 'text/csv;charset=utf-8');
+    showToast('已导出 CSV', 'success');
+}
+
+function dwDownloadTemplate() {
+    const ds = state.dataset;
+    const vars = (ds.vars || []).length ? ds.vars : [
+        { name: 'id', meaning: '个体标识（省份代码/股票代码）', unit: '', freq: '', source: '' },
+        { name: 'year', meaning: '年份', unit: '', freq: '年度', source: '' },
+        { name: 'Y', meaning: '被解释变量', unit: '', freq: '', source: '' },
+        { name: 'X', meaning: '核心解释变量', unit: '', freq: '', source: '' }
+    ];
+    const xml = dwBuildXls([
+        { name: '数据', rows: [vars.map(v => v.name || '')] },
+        { name: '数据字典', rows: [['变量名', '含义', '单位', '频度', '数据来源', '观测数', '缺失数']].concat(vars.map(v => [v.name || '', v.meaning || '', v.unit || '', v.freq || '', v.source || '', 0, 0])) }
+    ]);
+    dwDownload(xml, '数据模板_待填写.xls', 'application/vnd.ms-excel');
+    showToast('模板已下载，填好后复制回上方即可', 'success');
 }
 
 // ====== 高手档：每个研究阶段对应一套专业工具（不走 Q&A） ======
