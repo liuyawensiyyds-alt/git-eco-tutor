@@ -286,22 +286,21 @@ function toggleStageLevelSwitch(btn) {
 // ====== 讲解卡：从零讲起（问什么 / 为什么问 / 怎么想 / 举个例子 / 回答要点） ======
 // 优先使用题目自带的 explain 五要素（逐题手写、最完整）；
 // 若题目尚未编写 explain，则自动从 followUps / hint / concepts 抽取，保证不出现空白卡。
-// 讲解卡：默认折叠，学生需要时自己点开，避免一屏弹出多个气泡
+// 讲解卡：默认折叠；展开后一次只显示一块（问什么 / 为什么 / 怎么想 / 举例 / 要点），避免一屏长文
 function getConceptCardHtml(q) {
     const e = q.explain;
-    let body = '', title = '📖 从零讲起 · 本题讲解';
+    let blocks = [];
+    let title = '📖 从零讲起 · 本题讲解';
     if (e && (e.what || e.why)) {
-        const rows = [
-            ['🎯 这道题在问什么', e.what],
-            ['❓ 为什么要问这个', e.why],
-            ['🧭 从零开始怎么想', e.how],
-            ['💡 举个例子', e.eg],
-        ].filter(r => r[1]);
-        const pts = (e.points && e.points.length)
-            ? `<div class="concept-points">✍️ 回答要点：${e.points.map(p => `「${p}」`).join(' ')}</div>`
-            : '';
-        body = rows.map(r => `<div class="concept-row"><span class="concept-tag">${r[0]}</span><span>${r[1]}</span></div>`).join('') + pts +
-            `<div class="concept-note">看不懂也没关系——先按上面的思路写一版；写不出来就点下方的「我没思路」，我会一步步带着你想。</div>`;
+        blocks = [
+            ['问什么', e.what],
+            ['为什么问', e.why],
+            ['怎么想', e.how],
+            ['举个例子', e.eg],
+        ].filter(r => r[1]).map(r => ({ tab: r[0], text: r[1] }));
+        if (e.points && e.points.length) {
+            blocks.push({ tab: '回答要点', text: e.points.map(p => `「${p}」`).join(' ') });
+        }
     } else {
         // 回退：从题目的 followUps / hint / concepts 自动拼装
         title = '📖 概念讲解';
@@ -317,18 +316,31 @@ function getConceptCardHtml(q) {
         const why = pick('为什么|为何');
         const eg = pick('例子|举例');
         const points = (q.concepts || []).map(c => c.missing);
-        if (def) body += `<div class="concept-row"><span class="concept-tag">是什么</span><span>${def}</span></div>`;
-        if (how) body += `<div class="concept-row"><span class="concept-tag">怎么做</span><span>${how}</span></div>`;
-        if (eg) body += `<div class="concept-row"><span class="concept-tag">举个例子</span><span>${eg}</span></div>`;
-        else if (q.hint) body += `<div class="concept-row"><span class="concept-tag">提示</span><span>${q.hint}</span></div>`;
-        if (why) body += `<div class="concept-row"><span class="concept-tag">为什么</span><span>${why}</span></div>`;
-        if (points.length) body += `<div class="concept-points">✍️ 回答要点：${points.map(p => `「${p}」`).join(' ')}</div>`;
+        if (def) blocks.push({ tab: '是什么', text: def });
+        if (how) blocks.push({ tab: '怎么做', text: how });
+        if (eg) blocks.push({ tab: '举个例子', text: eg });
+        else if (q.hint) blocks.push({ tab: '提示', text: q.hint });
+        if (why) blocks.push({ tab: '为什么', text: why });
+        if (points.length) blocks.push({ tab: '回答要点', text: points.map(p => `「${p}」`).join(' ') });
     }
-    if (!body) return '';
+    if (!blocks.length) return '';
     return `<details class="concept-card-details">
         <summary>${title} <span class="concept-summary-hint">（点这里看）</span></summary>
-        <div class="concept-card-body">${body}</div>
+        <div class="concept-card-body">
+            <div class="concept-tabs">${blocks.map((b, i) => `<button type="button" class="concept-tab${i === 0 ? ' active' : ''}" onclick="switchConceptTab(this)">${b.tab}</button>`).join('')}</div>
+            ${blocks.map((b, i) => `<div class="concept-panel${i === 0 ? ' active' : ''}">${b.text}</div>`).join('')}
+        </div>
     </details>`;
+}
+
+// 讲解卡分块切换：一次只看一块
+function switchConceptTab(btn) {
+    const box = btn.closest('.concept-card-body');
+    if (!box) return;
+    const tabs = Array.from(box.querySelectorAll('.concept-tab'));
+    const idx = tabs.indexOf(btn);
+    tabs.forEach(b => b.classList.toggle('active', b === btn));
+    box.querySelectorAll('.concept-panel').forEach((p, pi) => p.classList.toggle('active', pi === idx));
 }
 
 // 参考示例回答（按 阶段-题号 索引；仅初学者/进阶在多次尝试后可见）
@@ -2177,7 +2189,7 @@ function renderDataGuideStage(stageNum) {
                 </div>
             `).join('')}
         </div>
-        <div class="dg-usage-foot">下一步：进入<span class="dg-foot-hl">阶段三 · 数据清洗</span>，把这张原始面板整理成规范数据集，并一键导出可用的 Excel 表格。</div>
+        <div class="dg-usage-foot">下一步：<span class="dg-foot-hl">阶段三 · 数据清洗</span>，整理成规范数据集并导出 Excel。</div>
         ${g.outcomes ? `
         <div class="dg-outcome-title">🧭 你手上的数据，最终会变成论文里的哪张表</div>
         <div class="dg-outcomes">
@@ -2190,7 +2202,7 @@ function renderDataGuideStage(stageNum) {
                 </div>
             `).join('')}
         </div>
-        <div class="dg-usage-foot">想不通某一步，直接问左侧的 AI 导师，例如：「我下载了省级 GDP 和人口，怎么算人均 GDP 并取对数？」</div>
+        <div class="dg-usage-foot">卡住了就问左侧 AI 导师。</div>
         ` : ''}
         ` : ''}
 
@@ -2215,7 +2227,7 @@ function renderGuideCompletePanel(stageNum) {
     area.innerHTML = `
         <div class="dg-complete-panel">
             <div class="dg-complete-text">
-                <strong>已完成浏览？</strong>确认你已找到自己变量对应的数据源与取数路径，即可进入阶段三。对数据源仍有疑问，可在左侧 AI 导师面板直接提问（如"AKShare 怎么下载 GDP 季度数据"）。
+                <strong>找到数据源和取数路径了？</strong>就可以进入阶段三；有疑问问左侧 AI 导师。
             </div>
             <div class="dg-complete-actions">
                 <button class="btn-secondary" onclick="continueExplore(${stageNum})">深入探讨数据源问题</button>
@@ -3097,10 +3109,8 @@ async function proactiveHelp(stageNum) {
     const first = (q.scaffold && q.scaffold[0]) || q.hint || (q.explain && q.explain.how);
     await addMsg('tutor', `
         <div class="proactive-help">
-            <div class="proactive-help-title">🤔 是不是卡住了？没关系，这道题本来就不容易。</div>
-            <div class="proactive-help-body">我换个方式来问你——先别管完整答案，只回答这一个小问题：</div>
+            <div class="proactive-help-title">🤔 卡住了？先回答这一个小问题：</div>
             <div class="proactive-help-q">${first}</div>
-            <div class="proactive-help-foot">想到一点就写一点。如果你想让我再多给一点线索，点下方的「我没思路」。</div>
         </div>
     `, false);
 }
@@ -3154,16 +3164,15 @@ function renderScaffoldHtml(stageNum, level) {
 
     // 第 3 步才给参考示例，且明确要求改写（初学者模式）
     if (level >= 3 && example && L && L.exampleAfter <= 3) {
-        html += `<details class="scaffold-example" open>
+        html += `<details class="scaffold-example">
             <summary>👀 参考示例（看懂思路后请换成你自己的研究再提交）</summary>
             <div class="scaffold-example-body">${example}</div>
-        </details>
-        <div class="scaffold-warn">⚠️ 示例只是让你看清「回答长什么样」。直接照抄，你的研究就变成别人的了——请把它改写成你自己的变量和问题。</div>`;
+        </details>`;
     } else if (level >= 3 && !example) {
         html += `<div class="scaffold-hint"><strong>💡 再想想：</strong>${q.hint || (q.explain && q.explain.how) || '把自己的研究问题套进去，把思路写出来即可。'}</div>`;
     }
 
-    html += `<div class="scaffold-ask">✍️ 现在先回答「小问题 ${Math.min(level, list.length)}」，把想到的写进输入框——哪怕只有一句话。</div>
+    html += `<div class="scaffold-ask">✍️ 先把这一小步的答案写进框里。</div>
         ${level < 3 ? `<button class="btn-scaffold" onclick="openScaffold(${stageNum})">还是没思路，再给一点线索</button>` : ''}
     </div>`;
     return html;
@@ -3288,35 +3297,44 @@ function pickExample(stageNum, qIdx) {
     return EXAMPLE_ANSWERS[`${stageNum}-${qIdx}`] || '';
 }
 
-// 学生表达困惑时：老师先讲清楚概念，再给一个最小步骤
+// 学生表达困惑时：只讲一句话 + 一个最小步骤，详解与示例折叠
 function confusedHtml(stageNum, q) {
     const example = pickExample(stageNum, qIdx(q, stageNum));
     const firstStep = (q.scaffold && q.scaffold[0]) || (q.hint || '先想想这道题最关键的词是什么');
-    const what = q.explain && q.explain.what ? q.explain.what : getQuestionGoal(q.recordKey);
+    const goal = getQuestionGoal(q.recordKey);
+    const detail = q.explain && q.explain.what ? q.explain.what : '';
+    const fold = [detail, example].filter(Boolean).join('<hr class="critique-hr">');
     return `
         <div class="critique-box teacher">
-            <div class="critique-chat">好，我懂了，你不是不想写，是还没搞明白这道题到底在问什么。别急，我先用一句话讲清楚：</div>
-            <div class="critique-what">${what}</div>
-            <div class="critique-step"><strong>咱们先只解决这一小步：</strong>${firstStep}</div>
-            ${example ? `<div class="critique-example"><strong>给你看个例子，你套进自己的研究里改一改：</strong>${example}</div>` : ''}
-            <div class="critique-next">不用写完美答案，把这一小步想到的写进框里就行；想不出来再点「💡 我没思路」。</div>
+            <div class="critique-line">${goal}</div>
+            <div class="critique-step"><strong>先做这一小步：</strong>${firstStep}</div>
+            ${fold ? `
+                <details class="critique-fold">
+                    <summary>展开看：详细讲解 / 例子</summary>
+                    <div class="critique-fold-body">${fold}</div>
+                </details>
+            ` : ''}
         </div>
     `;
 }
 
-// 学生直接提问：先正面回答，再给一个最小步骤，然后回到原题
+// 学生直接提问：一句回答 + 一个最小步骤，详解与示例折叠
 function askedHtml(stageNum, q, asked) {
     const example = pickExample(stageNum, qIdx(q, stageNum));
     const firstStep = (q.scaffold && q.scaffold[0]) || (q.hint || '先想想这道题最关键的词是什么');
-    const what = q.explain && q.explain.what ? q.explain.what : getQuestionGoal(q.recordKey);
-    const shortAsked = String(asked).trim().slice(0, 30);
+    const goal = getQuestionGoal(q.recordKey);
+    const detail = q.explain && q.explain.what ? q.explain.what : '';
+    const fold = [detail, example].filter(Boolean).join('<hr class="critique-hr">');
     return `
         <div class="critique-box teacher">
-            <div class="critique-chat">你刚才问的是「${shortAsked}${String(asked).length > 30 ? '…' : ''}」，没问题，我先把这一点讲清楚：</div>
-            <div class="critique-what">${what}</div>
-            <div class="critique-step"><strong>咱们先只解决这一小步：</strong>${firstStep}</div>
-            ${example ? `<div class="critique-example"><strong>给你看个例子，你套进自己的研究里改一改：</strong>${example}</div>` : ''}
-            <div class="critique-next">听懂了就直接在框里回答上面的题目；还想不通，点「💡 我没思路」。</div>
+            <div class="critique-line">${goal}</div>
+            <div class="critique-step"><strong>先做这一小步：</strong>${firstStep}</div>
+            ${fold ? `
+                <details class="critique-fold">
+                    <summary>展开看：详细讲解 / 例子</summary>
+                    <div class="critique-fold-body">${fold}</div>
+                </details>
+            ` : ''}
         </div>
     `;
 }
@@ -3326,7 +3344,7 @@ function qIdx(q, stageNum) {
     return stage.questions.indexOf(q);
 }
 
-// 纠错气泡：老师口吻——先讲清题目要什么，再指出差在哪，最后给例子和最小下一步
+// 纠错气泡：只露两行——差在哪、怎么改；其余全部折叠
 function critiqueHtml(stageNum, q, ans, grade, fails) {
     const quote = String(ans).trim().slice(0, 40);
     const goal = getQuestionGoal(q.recordKey);
@@ -3334,18 +3352,6 @@ function critiqueHtml(stageNum, q, ans, grade, fails) {
 
     const mainErr = grade.errors[0];
     const moreErrs = grade.errors.slice(1);
-    const problemHtml = `
-        <div class="critique-problem"><strong>你现在的回答差在哪：</strong>${mainErr.msg}</div>
-        <div class="critique-fix"><strong>应该改成这样：</strong>${mainErr.fix}</div>
-        ${moreErrs.length ? `<div class="critique-more"><strong>还有其他问题：</strong>${moreErrs.map(e => e.msg).join('；')}</div>` : ''}
-    `;
-
-    const warnHtml = grade.warns.length ? `
-        <div class="critique-warns" style="margin-top:10px">
-            <div class="critique-warn-title">再提醒一点（可以先继续，但最好记在心里）</div>
-            ${grade.warns.map(w => `<div class="critique-warn">· ${w.msg} <span class="critique-warn-fix">${w.fix}</span></div>`).join('')}
-        </div>
-    ` : '';
 
     const forceBtn = fails >= 2 ? `
         <div class="critique-force">
@@ -3353,15 +3359,21 @@ function critiqueHtml(stageNum, q, ans, grade, fails) {
         </div>
     ` : '';
 
+    const foldItems = [`<div class="critique-quote">你写的是：「${quote}${String(ans).length > 40 ? '…' : ''}」</div>`];
+    foldItems.push(`<div class="critique-what"><strong>这道题要的是：</strong>${goal}</div>`);
+    if (moreErrs.length) foldItems.push(`<div class="critique-problem"><strong>还有：</strong>${moreErrs.map(e => e.msg).join('；')}</div>`);
+    if (example) foldItems.push(`<div class="critique-example">${example}</div>`);
+    if (grade.warns.length) foldItems.push(`<div class="critique-warns">${grade.warns.map(w => `· ${w.msg} ${w.fix}`).join('<br>')}</div>`);
+
     return `
         <div class="critique-box teacher">
-            <div class="critique-chat">我看见你写的是「${quote}${String(ans).length > 40 ? '…' : ''}」，但这还没到这道题的点上。没关系，我们把它说清楚再改。</div>
-            <div class="critique-what"><strong>这道题真正想问的是：</strong>${goal}</div>
-            ${problemHtml}
-            ${example ? `<div class="critique-example"><strong>给你看个能直接套的例子：</strong>${example}</div>` : ''}
-            <div class="critique-next"><strong>现在请你重新写：</strong>${q.reAsk || q.text}</div>
-            ${warnHtml}
+            <div class="critique-line">${mainErr.msg}</div>
+            <div class="critique-fix">${mainErr.fix}</div>
             ${forceBtn}
+            <details class="critique-fold">
+                <summary>展开看：题目要什么 / 例子 / 提醒</summary>
+                <div class="critique-fold-body">${foldItems.join('')}</div>
+            </details>
         </div>
     `;
 }
@@ -3784,7 +3796,7 @@ function continueExplore(stageNum) {
                 继续深入探讨
             </div>
             <div class="help-general">
-                <strong>本阶段已完成。</strong>进入下一阶段前，你可以继续就本阶段的任何概念提出疑问——导师会逐一回应。学习不必被固定的题数限制。
+                <strong>本阶段已完成。</strong>还想追问什么，直接问。
             </div>
             ${uniqueTopics.length ? `<div class="help-suggestions">${uniqueTopics.map(t =>
                 `<div class="help-suggestion-chip" onclick="askFollowUp(${stageNum}, '${t}')">${t}</div>`
@@ -3835,7 +3847,7 @@ function getStageSummary(stageNum) {
                     <div class="data-source">${mockData.source}</div>
                 </div>
                 <div class="table-wrapper"><table class="data-table">${tableHtml}</table></div>
-                <p class="data-note">注意：上表为系统提供的示例数据（前5行）。请按照本阶段给出的取数路径，亲手下载你自己变量的真实数据。此处请勿直接解读数据规律或得出分析结论——那将留到阶段四完成。</p>
+                <p class="data-note">示例数据（前 5 行）。请按取数路径下载自己的真实数据；此处不解读规律、不下结论。</p>
                 <button class="btn-primary btn-next" onclick="navigate('stage3')">进入阶段三：数据清洗<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9H14M14 9L10 5M14 9L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                 <button class="btn-secondary btn-next" style="margin-left:10px" onclick="continueExplore(2)">继续深入探讨</button>
                 <button class="btn-secondary btn-next" style="margin-left:10px" onclick="navigate('home')">返回首页</button>

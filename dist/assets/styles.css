@@ -904,17 +904,27 @@ body {
     font-size: 12px; font-weight: 500; color: #8a7aa8;
 }
 .concept-card-body {
-    padding: 0 16px 14px; display: flex; flex-direction: column; gap: 9px;
+    padding: 0 16px 14px;
 }
-.concept-card-body .concept-row { display: flex; gap: 10px; font-size: 13px; color: #4a3d63; line-height: 1.65; }
-.concept-tag {
-    flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: #7a5fc0;
-    background: rgba(122,95,192,0.12); border-radius: 6px; padding: 2px 8px; height: fit-content; margin-top: 1px;
+
+/* 讲解卡分块标签：一次只看一块，避免长文疲劳 */
+.concept-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
 }
-.concept-points {
-    font-size: 12.5px; color: #8a5a00; background: #fff8e8;
-    border-radius: 8px; padding: 8px 10px; line-height: 1.65;
+.concept-tab {
+    font-size: 12px; font-weight: 700; color: #6a55a8; background: #fff;
+    border: 1px solid #e0d8f2; border-radius: 20px; padding: 4px 12px;
+    cursor: pointer; transition: all .15s;
 }
+.concept-tab:hover { border-color: #c3b6e8; }
+.concept-tab.active {
+    color: #fff; background: #7a5fc0; border-color: #7a5fc0;
+}
+.concept-panel {
+    display: none; font-size: 13px; color: #4a3d63; line-height: 1.7;
+    background: #fff; border: 1px solid #ece6f8; border-radius: 10px; padding: 11px 13px;
+}
+.concept-panel.active { display: block; }
 
 /* 兼容旧版展开式讲解卡（如 restore 历史未覆盖完的场景） */
 .concept-card {
@@ -1036,13 +1046,28 @@ body {
 }
 .critique-warns {
     background: #fffdf5; border: 1px solid #f0e2bd; border-radius: 9px; padding: 9px 12px;
-    display: flex; flex-direction: column; gap: 5px;
+    display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: #6b5b3a; line-height: 1.65;
 }
 .critique-warn-title { font-size: 12px; font-weight: 700; color: #8a6b1f; }
 .critique-warn { font-size: 12.5px; color: #6b5b3a; line-height: 1.65; }
 .critique-warn-fix { color: #8a7a5a; }
 .critique-force { display: flex; }
 .critique-force-btn { font-size: 12.5px !important; padding: 7px 12px !important; }
+
+/* 精简呈现：只露两行（差在哪 / 怎么改），其余折叠 */
+.critique-line { font-size: 13.5px; color: #4a3d2a; line-height: 1.7; }
+.critique-box .critique-fix { border-left: 3px solid #4a9d5f; }
+.critique-fold {
+    border: 1px dashed #e0cfa8; border-radius: 9px; background: #fffdf8; overflow: hidden;
+}
+.critique-fold summary {
+    cursor: pointer; padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: #8a6b1f;
+    list-style: none; user-select: none;
+}
+.critique-fold summary::-webkit-details-marker { display: none; }
+.critique-fold[open] summary { border-bottom: 1px dashed #e6d6b0; }
+.critique-fold-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.critique-hr { border: none; border-top: 1px dashed #e6d6b0; margin: 1px 0; }
 
 /* ====== 阶段二：数据到手之后做什么（紧凑清单） ====== */
 .dg-usage-compact { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
