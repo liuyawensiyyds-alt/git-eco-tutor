@@ -3264,6 +3264,16 @@ function isMetaConfusion(ans) {
     return /(不懂|不明白|不会|不知道|不清楚|没思路|没概念|什么意思|怎么写|咋写|教我|讲.*一下|给.*例子|解释一下|我还是|我搞不懂|能再说|再说一遍)/i.test(String(ans).trim());
 }
 
+// 学生不是在答题，而是在向老师提问/要例子/要解释：先回答他，再带他回到原题
+function isStudentAsking(ans) {
+    const s = String(ans).trim();
+    if (s.length > 80) return false;                    // 太长当作答案，不当作提问
+    if (/[?？]$/.test(s)) return true;                  // 以问号结尾
+    if (/^(什么|怎么|如何|为什么|哪里|哪些|谁|多少|几|请|能否|能不能|可不可以|告诉我|解释|讲讲|举例|举个例子|说明一下|x与y|y与x|x和y|y和x|分别|区别|关系)/i.test(s)) return true;
+    if (/(分别是什么|是什么意思|什么意思|是什么东西|是什么关系|有什么区别|如何理解|怎么理解|怎么看|怎么写|如何写|分别指|分别代表|怎么区分|如何区分|什么叫)/i.test(s)) return true;
+    return false;
+}
+
 function getQuestionGoal(recordKey) {
     const goals = {
         question: '研究问题：你要检验的「X 是否/如何影响 Y」。它必须是一个因果关系，而不是一个研究领域。',
@@ -3290,6 +3300,23 @@ function confusedHtml(stageNum, q) {
             <div class="critique-step"><strong>咱们先只解决这一小步：</strong>${firstStep}</div>
             ${example ? `<div class="critique-example"><strong>给你看个例子，你套进自己的研究里改一改：</strong>${example}</div>` : ''}
             <div class="critique-next">不用写完美答案，把这一小步想到的写进框里就行；想不出来再点「💡 我没思路」。</div>
+        </div>
+    `;
+}
+
+// 学生直接提问：先正面回答，再给一个最小步骤，然后回到原题
+function askedHtml(stageNum, q, asked) {
+    const example = pickExample(stageNum, qIdx(q, stageNum));
+    const firstStep = (q.scaffold && q.scaffold[0]) || (q.hint || '先想想这道题最关键的词是什么');
+    const what = q.explain && q.explain.what ? q.explain.what : getQuestionGoal(q.recordKey);
+    const shortAsked = String(asked).trim().slice(0, 30);
+    return `
+        <div class="critique-box teacher">
+            <div class="critique-chat">你刚才问的是「${shortAsked}${String(asked).length > 30 ? '…' : ''}」，没问题，我先把这一点讲清楚：</div>
+            <div class="critique-what">${what}</div>
+            <div class="critique-step"><strong>咱们先只解决这一小步：</strong>${firstStep}</div>
+            ${example ? `<div class="critique-example"><strong>给你看个例子，你套进自己的研究里改一改：</strong>${example}</div>` : ''}
+            <div class="critique-next">听懂了就直接在框里回答上面的题目；还想不通，点「💡 我没思路」。</div>
         </div>
     `;
 }
@@ -3421,6 +3448,26 @@ async function submitAnswer(stageNum) {
         return;
     }
     
+    // 学生说「不懂/不会/没思路」：老师本来就在带着你，这里只是把题目讲清楚，不    }
+
+    // 学生不是在答题，而是在提问：先回答他的问题，不记为错误
+    if (!forceContinueFlag && q.quality && isStudentAsking(ans)) {
+        await addMsg('user', escapeHTML(ans).replace(/\n/g, '<br>'));
+        // 提问也升级脚手架，给更具体的讲解
+        if (L0 && L0.showScaffold) {
+            const cur = (prog.scaffold && prog.scaffold[prog.qIdx]) || 0;
+            if (cur < 3) {
+                prog.scaffold = prog.scaffold || [];
+                prog.scaffold[prog.qIdx] = cur + 1;
+                saveState();
+            }
+        }
+        await addMsg('tutor', askedHtml(stageNum, q, ans));
+        renderInputPanel(stageNum);
+        showToast('你问的问题我解释了，看下面的提示', 'success');
+        return;
+    }
+
     // 学生说「不懂/不会/没思路」：老师本来就在带着你，这里只是把题目讲清楚，不批判
     if (!forceContinueFlag && q.quality && isMetaConfusion(ans)) {
         await addMsg('user', escapeHTML(ans).replace(/\n/g, '<br>'));
