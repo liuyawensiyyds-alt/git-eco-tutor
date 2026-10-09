@@ -381,6 +381,19 @@ const stages = {
                         '你认为是什么因素推动了它变化？把那个因素的名字说出来（政策、价格、收入、技术……都行）。',
                         '把两句话合起来：「（这个因素）会不会影响（那个现象）？」先把这一句写下来，不用完美。'
                 ],
+                quality: {
+                    shape: 'question',
+                    minLen: 10,
+                    mustMatch: [{
+                        re: /(影响|导致|促进|抑制|作用|关系|是否|会不会|效应|提高|降低|提升|减少|增加|决定|驱动|溢出|溢出效应)/,
+                        msg: '你写的是一个话题／现象，没有写出「谁影响谁」的因果方向。',
+                        fix: '改成「X 是否／如何影响 Y」的疑问句。例：最低工资标准上调是否降低了青年就业率？'
+                    }],
+                    mustNot: [
+                        { re: /(不知道|不清楚|随便|都行|无所谓|没有想法|想不出|不会写|太难了)/, msg: '这是放弃作答，导师不能放行——研究问题必须由你自己定。', fix: '哪怕不成熟，也先写一句你真正好奇的因果判断。' }
+                    ]
+                },
+                reAsk: '请用一句话重写你要检验的因果：<strong>什么因素</strong>（X）影响<strong>什么结果</strong>（Y）？写成疑问句。',
                 validate: ans => ans.length >= 10,
                 error: '请更具体地描述你的研究问题，至少10个字。',
                 recordKey: 'question'
@@ -409,6 +422,22 @@ const stages = {
                         '这个结果用什么数字来衡量？是总量、人均值、还是增长率？数据大概能从哪里拿到？',
                         '如果它的数值跨度很大（比如收入从几千到几十万），要不要取对数？取了以后系数该怎么读？'
                 ],
+                quality: {
+                    shape: 'variable',
+                    minLen: 3,
+                    maxLen: 60,
+                    mustMatch: [{
+                        re: /(对数|ln|log|人均|增长率|增速|占比|比例|比率|指数|水平|总量|规模|数量|率|元|万元|年限|人|个数|得分|规模以上)/,
+                        msg: '你只给了变量的名字，没说它用什么指标、什么单位来度量。',
+                        fix: '补上度量方式与单位。例：省份人均可支配收入的对数 ln(income)。'
+                    }],
+                    mustNot: [
+                        { re: /(吗[？?]?$|呢[？?]?$|是否|会不会|为什么|如何)/, msg: '这里要填的是一个变量（名词短语），不是一句话或一个问题。', fix: '直接写变量名：如「人均可支配收入（取对数）」。' },
+                        { re: /(这是|我觉得|我认为|老师|我希望|想研究)/, msg: '你写的是想法／说明，不是被解释变量本身。', fix: '把那个「被影响的结果」直接写出来即可。' }
+                    ],
+                    notSameAs: [{ key: 'question', label: '研究问题', tip: '你把研究问题整句搬过来了——研究问题是疑问句，变量是名词，两者不是一回事。', fix: '从你的问题里挑出「被影响的那一方」，只写它的名字和度量方式。' }]
+                },
+                reAsk: '请只写被解释变量 Y：<strong>变量名 + 度量方式</strong>（不要抄研究问题，也不要写成一句话）。',
                 validate: ans => ans.length >= 5,
                 error: '请明确指出被解释变量及其衡量方式。',
                 recordKey: 'varY'
@@ -437,6 +466,25 @@ const stages = {
                         '现实里有没有现成的指标能度量它？比如某个指数、金额、年限，或者「是否实施政策」的 0/1 变量。',
                         '这个指标在哪里会变化——是随年份变，还是随地区／随个人变？（没有变化就无法识别。）'
                 ],
+                quality: {
+                    shape: 'variable',
+                    minLen: 3,
+                    maxLen: 60,
+                    mustMatch: [{
+                        re: /(对数|ln|log|人均|增长率|增速|占比|比例|比率|指数|水平|总量|规模|数量|率|元|万元|年限|人|个数|得分|投入|支出|是否|虚拟|0\/1|哑变量)/,
+                        msg: '你只给了 X 的名字，没说它用什么指标度量。',
+                        fix: '补上度量方式。例：数字普惠金融指数（省级、年度）。'
+                    }],
+                    mustNot: [
+                        { re: /(吗[？?]?$|呢[？?]?$|会不会)/, msg: '这里要填的是一个变量，不是问句。', fix: '直接写变量名与度量方式。' },
+                        { re: /(控制变量|被解释变量|Y变量)/, msg: '你可能把 X 和控制变量／Y 搞混了。', fix: 'X 是你最关心的那个「因」，控制变量是后面一题才填的。' }
+                    ],
+                    notSameAs: [
+                        { key: 'varY', label: '被解释变量 Y', tip: 'X 和 Y 写成了同一个东西——Y 是结果，X 是你认为造成这个结果的原因，两者必须不同。', fix: '回到你的研究问题，找出推动 Y 变化的那个因素。' },
+                        { key: 'question', label: '研究问题', tip: '你把研究问题整句搬过来了，这里要填的是变量，不是问题。', fix: '只写出那个「原因」的名字和度量方式。' }
+                    ]
+                },
+                reAsk: '请只写核心解释变量 X：<strong>变量名 + 度量方式</strong>（必须与上面的 Y 不同，它是「因」，不是「果」）。',
                 validate: ans => ans.length >= 5,
                 error: '请明确指出核心解释变量。',
                 recordKey: 'varX'
@@ -466,6 +514,24 @@ const stages = {
                         '其中有没有既不随时间变化、又难以观测的因素？（有就用固定效应吸收掉。）',
                         '你列的里面，有没有其实属于「X 影响 Y 的中间环节」？（有的话必须删掉，否则会把要估计的效应本身控掉。）'
                 ],
+                quality: {
+                    shape: 'list',
+                    minLen: 4,
+                    minItems: 2,
+                    mustMatch: [{
+                        re: /(因为|同时影响|既|也影响|相关|偏误|内生|混淆|干扰|影响.{0,6}(也|同时))/,
+                        msg: '你列出了变量，但没有说明「为什么必须控制它」。',
+                        fix: '补一句：它同时影响 X 和 Y，不控制就会把它的作用算到 X 头上（遗漏变量偏误）。'
+                    }],
+                    mustNot: [
+                        { re: /(没有|无。|不需要|想不出|不知道|随便|都可以)/, msg: '「没有／不需要」在实证研究里几乎不成立——任何 Y 都同时受多个因素影响。', fix: '至少列出 2—3 个会影响 Y 的其他因素，如人均GDP、城镇化率、人口规模。' }
+                    ],
+                    notSameAs: [
+                        { key: 'varX', label: '核心解释变量 X', tip: '控制变量不能只有 X 自己——X 是你要估计的主角，不能自己控制自己。', fix: '另找 2—3 个同样影响 Y、但并非你研究核心的因素。' },
+                        { key: 'varY', label: '被解释变量 Y', tip: 'Y 不能被当成自己的控制变量。', fix: '列出影响 Y 的其他因素。' }
+                    ]
+                },
+                reAsk: '请列出至少 2—3 个控制变量，并对每一个说明：<strong>它为什么同时影响 X 和 Y</strong>（不控制会怎样）。',
                 validate: ans => ans.length >= 5,
                 error: '请至少列举一些潜在的控制变量。',
                 recordKey: 'controls'
@@ -2988,7 +3054,7 @@ function renderInputPanel(stageNum) {
             <div class="input-panel-header">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5H17M3 10H17M3 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 <span>请回答导师的提问</span>
-                ${scaffoldOn ? `<span class="input-panel-tip">写不出来不必硬撑，点「我没思路」，我带你一步步想</span>` : ''}
+                ${scaffoldOn ? `<span class="input-panel-tip">${stageNum === 1 ? '导师会逐条检查你的回答，答偏了会当场指出哪里不对；' : ''}写不出来不必硬撑，点「我没思路」，我带你一步步想</span>` : ''}
             </div>
             ${helpHtml}
             <textarea id="answerInput" class="text-input" rows="4" placeholder="在此输入你的思考...（想到多少写多少，写完可以再改）"></textarea>
@@ -3104,6 +3170,140 @@ function renderScaffoldHtml(stageNum, level) {
 }
 
 // ====== 提交回答 ======
+// ====== 答题质检：明确指出错在哪，不放任乱写 ======
+// 只做形态与逻辑判断（不依赖网络），规则写在每题的 quality 字段里
+function normAns(s) {
+    return String(s || '')
+        .replace(/\s+/g, '')
+        .replace(/[，。；：、,.?!？！:；'"“”「」（）()《》]/g, '')
+        .toLowerCase();
+}
+
+// 两段文本的重合度（用于识别"把上一题答案整句搬过来"）
+function ansOverlap(a, b) {
+    const A = normAns(a), B = normAns(b);
+    if (!A || !B) return 0;
+    if (A === B) return 1;
+    // 短串被长串包含：按长度比算重合度（识别"把上一题答案整句搬过来"）
+    const long = A.length >= B.length ? A : B;
+    const short = A.length >= B.length ? B : A;
+    if (!short.length) return 0;
+    return long.includes(short) ? short.length / long.length : 0;
+}
+
+function splitItems(s) {
+    return String(s).split(/[,，、;；\/|]|\band\b|以及|还有|和/).map(x => x.trim()).filter(x => x.length >= 2);
+}
+
+// 无意义输入（乱码、纯数字、重复字）
+function isJunkAnswer(ans) {
+    const s = String(ans || '').trim();
+    if (s.length < 2) return true;
+    if (/^[\d\s.]+$/.test(s)) return true;
+    if (/^(.)\1{3,}$/.test(s)) return true;
+    if (!/[\u4e00-\u9fa5A-Za-z]/.test(s)) return true;
+    return false;
+}
+
+// 返回 { errors: [{msg, fix}], warns: [{msg, fix}] }
+function checkAnswerQuality(stageNum, qIdx, ans) {
+    const q = (stages[stageNum] && stages[stageNum].questions && stages[stageNum].questions[qIdx]) || null;
+    const errors = [], warns = [];
+    if (!q || !q.quality) return { errors, warns };
+
+    const R = q.quality;
+    const s = String(ans).trim();
+
+    if (isJunkAnswer(s)) {
+        errors.push({ msg: '这不是一个有效的回答（太短、纯数字或乱码）。', fix: '请写出你的真实想法，哪怕只有一句话。' });
+        return { errors, warns };
+    }
+    if (R.minLen && s.length < R.minLen) {
+        errors.push({ msg: `回答太短（${s.length} 字），说不清这道题要的东西。`, fix: `至少写 ${R.minLen} 个字，把变量名和度量方式都写出来。` });
+    }
+    if (R.maxLen && s.length > R.maxLen) {
+        warns.push({ msg: `写得太长（${s.length} 字），这一题要的是变量本身，不是一段论述。`, fix: '精简成「变量名 + 度量方式」，其余留到后面再展开。' });
+    }
+
+    (R.mustMatch || []).forEach(rule => {
+        if (!rule.re.test(s)) {
+            (rule.level === 'warn' ? warns : errors).push({ msg: rule.msg, fix: rule.fix });
+        }
+    });
+
+    (R.mustNot || []).forEach(rule => {
+        if (rule.re.test(s)) {
+            (rule.level === 'warn' ? warns : errors).push({ msg: rule.msg, fix: rule.fix });
+        }
+    });
+
+    // 与前面已填内容雷同（把研究问题／Y／X 整句搬过来）
+    (R.notSameAs || []).forEach(rule => {
+        const prev = (state.researchDesign && state.researchDesign[rule.key]) || '';
+        if (prev && ansOverlap(s, prev) > 0.55) {
+            (rule.level === 'warn' ? warns : errors).push({ msg: rule.tip, fix: rule.fix });
+        }
+    });
+
+    // 列表题：数量是否够
+    if (R.shape === 'list' && R.minItems) {
+        const items = splitItems(s);
+        if (items.length < R.minItems) {
+            errors.push({
+                msg: `只写了 ${items.length || 1} 个变量，通常不足以控制住混淆因素。`,
+                fix: `至少列出 ${R.minItems} 个（如人均GDP、城镇化率、人口规模），并说明为什么要控制它们。`
+            });
+        }
+    }
+
+    return { errors, warns };
+}
+
+// 纠错气泡：指出错在哪 + 为什么 + 怎么改 + 重新追问（形成互动）
+function critiqueHtml(stageNum, q, ans, grade, fails) {
+    const quote = String(ans).trim().slice(0, 40);
+    const errItems = grade.errors.map((e, i) => `
+        <div class="critique-item">
+            <div class="critique-item-head"><span class="critique-num">问题 ${i + 1}</span>${e.msg}</div>
+            <div class="critique-fix"><span class="critique-fix-tag">怎么改</span>${e.fix}</div>
+        </div>
+    `).join('');
+    const warnItems = grade.warns.length ? `
+        <div class="critique-warns">
+            <div class="critique-warn-title">另外提醒一下（不强制修改）</div>
+            ${grade.warns.map(w => `<div class="critique-warn">· ${w.msg} <span class="critique-warn-fix">${w.fix}</span></div>`).join('')}
+        </div>
+    ` : '';
+    const forceBtn = fails >= 2 ? `
+        <div class="critique-force">
+            <button class="btn-secondary critique-force-btn" onclick="forceAcceptAnswer(${stageNum})">我已经尽力改了，按这版继续（导师会记录此处需修改）</button>
+        </div>
+    ` : '';
+    return `
+        <div class="critique-box">
+            <div class="critique-title">⚠️ 先别急着往下走，这一版还不对</div>
+            <div class="critique-quote">你写的是：「${quote}${String(ans).length > 40 ? '…' : ''}」</div>
+            ${errItems}
+            ${warnItems}
+            <div class="critique-ask">改完再点「提交回答」。写不出来就点「💡 我没思路」，我一步步带你找。</div>
+            ${forceBtn}
+        </div>
+    `;
+}
+
+// 学生坚持原样继续：记录一次"带问题放行"，供教师后台查看
+function forceAcceptAnswer(stageNum) {
+    const prog = state.progress[stageNum];
+    prog.forced = prog.forced || [];
+    if (!prog.forced.includes(prog.qIdx)) prog.forced.push(prog.qIdx);
+    saveState();
+    showToast('已记录：这一处还需要修改，教师后台可见', 'error');
+    forceContinueFlag = true;
+    submitAnswer(stageNum);
+}
+
+let forceContinueFlag = false;
+
 // 答案校验（初学者模式放宽门槛：先写出来，比一次写对更重要）
 function validateAnswer(q, ans, L) {
     if (!q.validate) return { ok: true };
@@ -3173,6 +3373,51 @@ async function submitAnswer(stageNum) {
         return;
     }
     
+    // 答题质检：明确指出错在哪，改对了才往下走（阶段一研究设计）
+    let pendingWarns = [];
+    if (!forceContinueFlag && q.quality) {
+        const grade = checkAnswerQuality(stageNum, prog.qIdx, ans);
+        if (grade.errors.length) {
+            prog.attempts = prog.attempts || [];
+            prog.attempts[prog.qIdx] = (prog.attempts[prog.qIdx] || 0) + 1;
+            const fails = prog.attempts[prog.qIdx];
+            prog.quality = prog.quality || {};
+            prog.quality[prog.qIdx] = { errors: grade.errors.length, warns: grade.warns.length, tries: fails, last: ans.slice(0, 120) };
+            saveState();
+
+            // 学生这一版也进对话区，形成一来一回的互动
+            await addMsg('user', escapeHTML(ans).replace(/\n/g, '<br>'));
+
+            // 初学者模式：出错一次就把问题拆小一点，边改边学
+            if (L0 && L0.showScaffold) {
+                const cur = (prog.scaffold && prog.scaffold[prog.qIdx]) || 0;
+                if (cur < 2) {
+                    prog.scaffold = prog.scaffold || [];
+                    prog.scaffold[prog.qIdx] = cur + 1;
+                    saveState();
+                }
+            }
+
+            await addMsg('tutor',
+                critiqueHtml(stageNum, q, ans, grade, fails) +
+                `<div class="tutor-question">${q.reAsk || q.text}</div>`
+            );
+
+            // 保留草稿，方便在原句上改
+            renderInputPanel(stageNum);
+            if ($('answerInput')) $('answerInput').value = ans;
+            showToast('这一版还不符合要求，请看导师标出的问题', 'error');
+            return;
+        }
+        if (grade.warns.length) {
+            pendingWarns = grade.warns;
+            prog.quality = prog.quality || {};
+            prog.quality[prog.qIdx] = { errors: 0, warns: grade.warns.length, tries: 1 };
+            saveState();
+        }
+    }
+    forceContinueFlag = false;
+
     // 记录回答
     prog.answers[prog.qIdx] = ans;
     
@@ -3184,7 +3429,12 @@ async function submitAnswer(stageNum) {
 
     // 准备下一题的引导语（与下一题合并成一个气泡，避免弹多个对话框）
     await sleep(400);
-    const feedback = getFeedback(stageNum, prog.qIdx);
+    let feedback = getFeedback(stageNum, prog.qIdx);
+    if (pendingWarns.length) {
+        feedback += `<div class="critique-warns" style="margin-top:8px">` +
+            pendingWarns.map(w => `<div class="critique-warn">· ${w.msg} <span class="critique-warn-fix">${w.fix}</span></div>`).join('') +
+            `</div>`;
+    }
 
     // 记录研究设计信息
     if (q.recordKey) {
@@ -3606,7 +3856,7 @@ function exportAnswers() {
     saveStudentInfo();
     
     const student = state.student;
-    const headers = ['姓名', '学号', '阶段', '题号', '问题', '学生回答', '是否通过'];
+    const headers = ['姓名', '学号', '阶段', '题号', '问题', '学生回答', '是否通过', '答题质检', '是否强制放行'];
     
     const rows = [];
     for (let i = 1; i <= 4; i++) {
@@ -3615,6 +3865,9 @@ function exportAnswers() {
         stage.questions.forEach((q, qi) => {
             const ans = p.answers[qi] || '';
             const passed = ans ? (q.validate ? (q.validate(ans) ? '通过' : '未通过') : '—') : '未作答';
+            const qc = (p.quality && p.quality[qi]) || null;
+            const qcText = qc ? `硬伤${qc.errors}处／改了${qc.tries}次` : '—';
+            const forcedText = (p.forced && p.forced.indexOf(qi) >= 0) ? '是' : '否';
             // 清理 HTML 标签
             const cleanQ = q.text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').substring(0, 100);
             rows.push([
@@ -3624,7 +3877,9 @@ function exportAnswers() {
                 `Q${qi + 1}`,
                 cleanQ,
                 ans || '—',
-                passed
+                passed,
+                qcText,
+                forcedText
             ]);
         });
     }
@@ -3711,12 +3966,15 @@ async function submitToBackend() {
         stage.questions.forEach((q, qi) => {
             const ans = p.answers[qi] || '';
             const passed = ans ? (q.validate ? (q.validate(ans) ? '通过' : '未通过') : '—') : '未作答';
+            const qc = (p.quality && p.quality[qi]) || null;
             payload.answers.push({
                 stage: `阶段${i}`,
                 qNum: `Q${qi + 1}`,
                 question: q.text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').substring(0, 200),
                 answer: ans,
-                passed
+                passed,
+                quality: qc ? `硬伤${qc.errors}处／改了${qc.tries}次` : '',
+                forced: (p.forced && p.forced.indexOf(qi) >= 0) ? '是' : '否'
             });
         });
     }
@@ -4008,8 +4266,10 @@ function showStudentModal(studentId) {
         html += '<div class="modal-section"><div class="modal-section-title">答题详情</div>';
         s.answers.forEach(a => {
             const passCls = a.passed === '通过' ? 'cell-ok' : (a.passed === '未通过' ? 'cell-wip' : 'cell-na');
+            const qcTag = a.quality ? `<span class="cell-wip">[质检：${a.quality}]</span>` : '';
+            const fcTag = a.forced === '是' ? '<span class="cell-na">[学生强制放行]</span>' : '';
             html += `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">${a.stage} · ${a.qNum} <span class="${passCls}">[${a.passed}]</span></div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">${a.stage} · ${a.qNum} <span class="${passCls}">[${a.passed}]</span> ${qcTag} ${fcTag}</div>
                 <div style="font-size:13px;color:var(--text);margin-bottom:4px">${a.question}</div>
                 <div style="font-size:13px;color:var(--text-secondary);background:var(--bg);padding:8px;border-radius:6px">${a.answer || '未作答'}</div>
             </div>`;
@@ -4401,12 +4661,12 @@ function exportClassAnswers() {
     if (teacherData.answers.length === 0 && teacherData.students.length === 0) {
         showToast('暂无答题数据可导出', 'error'); return;
     }
-    const headers = ['姓名', '学号', '阶段', '题号', '问题', '学生回答', '是否通过'];
+    const headers = ['姓名', '学号', '阶段', '题号', '问题', '学生回答', '是否通过', '答题质检', '是否强制放行'];
     let csv = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n';
     if (teacherData.answers.length > 0) {
         teacherData.answers.forEach(a => {
             csv += [`"${a.name || '—'}"`, `"${a.id || '—'}"`, `"${a.stage}"`, `"${a.qNum}"`,
-                `"${a.question}"`, `"${a.answer}"`, `"${a.passed}"`].join(',') + '\n';
+                `"${a.question}"`, `"${a.answer}"`, `"${a.passed}"`, `"${a.quality || '—'}"`, `"${a.forced || '否'}"`].join(',') + '\n';
         });
     }
     downloadCSV(csv, `班级答题详情汇总_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);

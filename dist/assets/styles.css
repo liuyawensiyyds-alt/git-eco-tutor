@@ -999,6 +999,44 @@ body {
 }
 .proactive-help-foot { font-size: 12px; color: #8a7a5a; line-height: 1.6; }
 
+/* ====== 答题纠错气泡（明确指出错在哪，不放任乱写） ====== */
+.critique-box {
+    background: #fff6f4; border: 1px solid #f3cfc6; border-radius: 12px;
+    padding: 13px 15px; display: flex; flex-direction: column; gap: 10px;
+}
+.critique-title { font-size: 13.5px; font-weight: 800; color: #b1372a; }
+.critique-quote {
+    font-size: 12.5px; color: #7a5a52; background: #fff; border: 1px dashed #e6c3ba;
+    border-radius: 8px; padding: 8px 11px; line-height: 1.6; word-break: break-all;
+}
+.critique-item {
+    background: #fff; border: 1px solid #f0d2cb; border-radius: 9px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.critique-item-head { font-size: 13px; color: #4a2f2a; line-height: 1.7; }
+.critique-num {
+    display: inline-block; font-size: 11px; font-weight: 800; color: #fff; background: #c1493a;
+    border-radius: 5px; padding: 1px 6px; margin-right: 6px; vertical-align: 1px;
+}
+.critique-fix { font-size: 12.5px; color: #2f5d3a; line-height: 1.7; }
+.critique-fix-tag {
+    display: inline-block; font-size: 11px; font-weight: 800; color: #2f5d3a; background: #e8f5ea;
+    border-radius: 5px; padding: 1px 6px; margin-right: 6px; vertical-align: 1px;
+}
+.critique-warns {
+    background: #fffdf5; border: 1px solid #f0e2bd; border-radius: 9px; padding: 9px 12px;
+    display: flex; flex-direction: column; gap: 5px;
+}
+.critique-warn-title { font-size: 12px; font-weight: 700; color: #8a6b1f; }
+.critique-warn { font-size: 12.5px; color: #6b5b3a; line-height: 1.65; }
+.critique-warn-fix { color: #8a7a5a; }
+.critique-ask {
+    font-size: 12.5px; color: #6b4a42; background: #fff; border-radius: 8px;
+    padding: 8px 11px; line-height: 1.65;
+}
+.critique-force { display: flex; }
+.critique-force-btn { font-size: 12.5px !important; padding: 7px 12px !important; }
+
 /* ====== 阶段二：数据到手之后做什么（紧凑清单） ====== */
 .dg-usage-compact { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .dg-uc-head, .dg-uc-row {
