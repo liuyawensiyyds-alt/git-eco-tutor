@@ -1614,6 +1614,64 @@ body {
 }
 .dw-export .btn-primary:disabled, .dw-export .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ====== 阶段二：找数据四步法（脱离平台也能用） ====== */
+.dg-method { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.dg-mt-head, .dg-mt-row { display: grid; grid-template-columns: .9fr 1.6fr 1.2fr; }
+.dg-mt-head { background: #eef4ff; font-size: 11.5px; font-weight: 800; color: #3a5f9e; text-align: center; }
+.dg-mt-head > div, .dg-mt-row > div { padding: 9px 11px; font-size: 12.5px; line-height: 1.6; border-left: 1px solid #e6edf8; }
+.dg-mt-head > div:first-child, .dg-mt-row > div:first-child { border-left: none; }
+.dg-mt-row { border-top: 1px solid #e6edf8; }
+.dg-mt-step { font-weight: 800; color: #2f5296; }
+.dg-mt-do { color: #3f3a55; }
+.dg-mt-ok { background: #fafcff; color: #5a6b8a; }
+.dg-publisher { margin-top: 9px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.dg-publisher > summary {
+    padding: 9px 13px; font-size: 12.5px; font-weight: 700; color: #3a5f9e;
+    background: #f4f8ff; cursor: pointer;
+}
+.dg-pub-table { border-top: 1px solid #e6edf8; }
+.dg-pub-head, .dg-pub-row { display: grid; grid-template-columns: 1.3fr .9fr 1.3fr; }
+.dg-pub-head { background: #f7faff; font-size: 11.5px; font-weight: 800; color: #5a6b8a; text-align: center; }
+.dg-pub-head > div, .dg-pub-row > div { padding: 8px 11px; font-size: 12.5px; line-height: 1.6; border-left: 1px solid #e6edf8; }
+.dg-pub-head > div:first-child, .dg-pub-row > div:first-child { border-left: none; }
+.dg-pub-row { border-top: 1px solid #eef2f8; }
+.dg-pub-who { font-weight: 700; color: #2f5296; }
+.dg-pub-where { color: #6b7280; }
+
+/* ====== 阶段二：取数方案实操（自己填 → 检查 → 带走） ====== */
+.dg-practice {
+    border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px;
+}
+.dg-prac-tip { font-size: 12.5px; color: #6b7280; margin: 0 0 10px; line-height: 1.7; }
+.sp-head, .sp-row { display: grid; grid-template-columns: 1.2fr 1.1fr .8fr 1fr 1fr 1.1fr 30px; }
+.sp-head { background: #f5f2ff; font-size: 11.5px; font-weight: 800; color: #5b4a9e; text-align: center; }
+.sp-head > div, .sp-row > .sp-var, .sp-row > .sp-in {
+    padding: 7px 9px; font-size: 12.5px; border-left: 1px solid #ece7fb; line-height: 1.55;
+}
+.sp-head > div:first-child, .sp-row > .sp-var { border-left: none; }
+.sp-row { border-top: 1px solid #ece7fb; }
+.sp-var { color: #3f3a55; background: #fdfcff; word-break: break-all; }
+.sp-in {
+    border: none; border-left: 1px solid #ece7fb; background: #fff;
+    font-size: 12.5px; font-family: inherit; width: 100%; outline: none; min-width: 0;
+}
+.sp-in:focus { background: #fbfaff; }
+.sp-role {
+    display: inline-block; font-size: 10.5px; font-weight: 800; color: #7a5fc0;
+    background: rgba(122,95,192,0.12); border-radius: 5px; padding: 1px 5px; margin-right: 5px;
+}
+.sp-del { border: none; background: #fff; color: #b0a8c8; font-size: 17px; cursor: pointer; }
+.sp-del:hover { color: #c1493a; }
+.dg-prac-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+.sp-verdict { margin-top: 11px; font-size: 12.5px; font-weight: 700; padding: 8px 11px; border-radius: 8px; }
+.sp-verdict.ok { background: #eef7f0; color: #2f5d3a; }
+.sp-verdict.bad { background: #fff6f4; color: #b1372a; }
+.sp-item { font-size: 12.5px; line-height: 1.65; padding: 7px 11px; border-radius: 8px; margin-top: 6px; }
+.sp-item.ok { background: #f6faf7; color: #3f6b4a; }
+.sp-item.bad { background: #fffaf8; color: #6b4a42; border: 1px solid #f3d9d4; }
+.sp-item-var { font-weight: 800; margin-right: 6px; color: #4a2f2a; }
+.sp-item-fix { font-size: 12px; color: #2f5d3a; margin-top: 3px; }
+
 @media (max-width: 640px) {
     .dw-var-head { display: none; }
     .dw-var-row { flex-wrap: wrap; }
@@ -1624,4 +1682,16 @@ body {
     .dg-st-row { grid-template-columns: 1fr; }
     .dg-st-head > div, .dg-st-row > div { border-left: none; border-top: 1px solid #f2e4c4; }
     .dg-st-row > div:first-child { border-top: none; }
+    .dg-mt-head, .dg-pub-head { display: none; }
+    .dg-mt-row { grid-template-columns: 1fr; }
+    .dg-mt-head > div, .dg-mt-row > div { border-left: none; border-top: 1px solid #e6edf8; }
+    .dg-mt-row > div:first-child { border-top: none; }
+    .dg-pub-row { grid-template-columns: 1fr; }
+    .dg-pub-head > div, .dg-pub-row > div { border-left: none; border-top: 1px solid #e6edf8; }
+    .dg-pub-row > div:first-child { border-top: none; }
+    .sp-head { display: none; }
+    .sp-row { grid-template-columns: 1fr 1fr; }
+    .sp-var { grid-column: 1 / -1; }
+    .sp-row > .sp-in { border-top: 1px solid #ece7fb; }
+    .sp-del { border-top: 1px solid #ece7fb; }
 }

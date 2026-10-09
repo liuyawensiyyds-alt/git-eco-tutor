@@ -18,6 +18,8 @@ const defaultState = {
     researchDesign: { question: '', varY: '', varX: '', controls: '' },
     // 阶段三产出：可用数据集（变量清单 + 数据行），可导出 Excel
     dataset: { vars: [], rows: [], raw: '', checkedAt: null },
+    // 阶段二产出：我的取数方案（自己写的检索词/口径/发布方），可带走
+    sourcingPlan: { rows: [], checkedAt: null },
     level: null,          // 'beginner' | 'intermediate' | 'advanced' | null（未选择）
     levelHistory: [],     // 水平变更记录 [{from, to, time}]
     currentStage: null,
@@ -27,6 +29,7 @@ const defaultState = {
 let state = loadState();
 // 兼容旧存档：补全 dataset 字段
 if (!state.dataset) state.dataset = { vars: [], rows: [], raw: '', checkedAt: null };
+if (!state.sourcingPlan) state.sourcingPlan = { rows: [], checkedAt: null };
 
 function loadState() {
     try {
@@ -865,6 +868,23 @@ const stages = {
                 'DID 处理变量必须用官方试点名单，不要自己构造处理组',
                 '行政非公开数据（爬虫爬不到）只能走信息公开申请，预留 2–4 周，并准备公开替代指标',
                 '上市公司数据匹配：股票代码是唯一标识，两张表用 VLOOKUP/XLOOKUP 合并'
+            ],
+            // ====== 找数据的通用方法（脱离平台也能用） ======
+            method: [
+                { step: '① 变量 → 检索词', do: '把 Y / X 换成官网上真实存在的指标名，再准备 2—3 个同义词', ok: '在官网搜索框能搜到，页面上能看到单位和频度' },
+                { step: '② 定口径', do: '写死四件事：层面（国家/省/市/企业/个人）+ 频度 + 起止年份 + 单位', ok: '换成别人照着做，拿到的也是同一份数据' },
+                { step: '③ 谁生产，谁发布', do: '先想清楚谁在统计这件事，直接进它的官网，别先用搜索引擎', ok: '来源是机构官网，或学校已购数据库' },
+                { step: '④ 试下载 + 留痕', do: '先下一小段验证能覆盖研究区间、前后口径一致，再记下链接、下载日期、口径说明', ok: '半年后你自己或审稿人能按记录复现' }
+            ],
+            publishers: [
+                { v: '宏观总量（GDP、CPI、就业、人口、收入）', who: '国家统计局 / 地方统计局', where: 'data.stats.gov.cn、各级统计年鉴' },
+                { v: '货币金融（M2、社融、利率、汇率）', who: '中国人民银行', where: 'pbc.gov.cn「调查统计」' },
+                { v: '财政收支、地方债', who: '财政部 / 地方财政厅', where: 'mof.gov.cn「财政数据」' },
+                { v: '进出口贸易', who: '海关总署', where: 'customs.gov.cn「统计资讯」' },
+                { v: '上市公司财务与股价', who: '交易所授权数据库', where: 'CSMAR / Wind / AKShare / 巨潮资讯网' },
+                { v: '政策试点（DID 的处理组）', who: '发文部委', where: '政策原文、试点批次名单、部委公示' },
+                { v: '个体与家庭（健康、教育、消费）', who: '高校调查项目组', where: 'CFPS / CGSS / CHFS 官网申请' },
+                { v: '国际比较', who: '国际组织', where: '世界银行 WDI、IMF、OECD、UN Comtrade' }
             ],
             // ====== 数据到手之后怎么用（紧凑清单：做什么 / 为什么） ======
             usage: [
@@ -2159,11 +2179,36 @@ function renderDataGuideStage(stageNum) {
             <div class="dg-banner-text">${varsLine}</div>
         </div>
 
-        <div class="dg-section-title"><span class="dg-sec-num">1</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签</span></div>
+        <div class="dg-section-title"><span class="dg-sec-num">1</span>先学方法：找数据四步法<span class="dg-sec-sub">换任何题目都能用</span></div>
+        <div class="dg-method">
+            <div class="dg-mt-head"><div>步骤</div><div>怎么做</div><div>做到什么算对</div></div>
+            ${g.method.map(m => `
+                <div class="dg-mt-row">
+                    <div class="dg-mt-step">${m.step}</div>
+                    <div class="dg-mt-do">${m.do}</div>
+                    <div class="dg-mt-ok">${m.ok}</div>
+                </div>
+            `).join('')}
+        </div>
+        <details class="dg-publisher">
+            <summary>第③步不会用？看「谁生产，谁发布」对照表</summary>
+            <div class="dg-pub-table">
+                <div class="dg-pub-head"><div>你要的变量</div><div>谁在发布</div><div>去哪找</div></div>
+                ${g.publishers.map(p => `
+                    <div class="dg-pub-row">
+                        <div class="dg-pub-v">${p.v}</div>
+                        <div class="dg-pub-who">${p.who}</div>
+                        <div class="dg-pub-where">${p.where}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </details>
+
+        <div class="dg-section-title"><span class="dg-sec-num">2</span>数据源导航<span class="dg-sec-sub">按变量类型选择标签</span></div>
         <div class="dg-tabs">${catTabs}</div>
         <div class="dg-panels">${catPanels}</div>
 
-        <div class="dg-section-title"><span class="dg-sec-num">2</span>取数地图<span class="dg-sec-sub">做企业层面实证时，三类数据分头去取</span></div>
+        <div class="dg-section-title"><span class="dg-sec-num">3</span>取数地图<span class="dg-sec-sub">做企业层面实证时，三类数据分头去取</span></div>
         <div class="dg-map">
             <div class="dg-map-head">
                 <div>数据类型</div><div>首选渠道</div><div>典型变量举例</div>
@@ -2171,14 +2216,25 @@ function renderDataGuideStage(stageNum) {
             ${mapRows}
         </div>
 
-        <div class="dg-section-title"><span class="dg-sec-num">3</span>渠道优先级<span class="dg-sec-sub">从上往下依次尝试</span></div>
+        <div class="dg-section-title"><span class="dg-sec-num">4</span>渠道优先级与避坑<span class="dg-sec-sub">从上往下依次尝试</span></div>
         <div class="dg-prios">${prioRows}</div>
-
-        <div class="dg-section-title"><span class="dg-sec-num">4</span>避坑清单<span class="dg-sec-sub">取数前必读</span></div>
         <div class="dg-pitfalls">${pitfalls}</div>
 
+        <div class="dg-section-title"><span class="dg-sec-num">5</span>练一遍：给你的变量写取数方案<span class="dg-sec-sub">照四步法填，写完可以带走</span></div>
+        <div class="dg-practice">
+            <p class="dg-prac-tip">下面这张表照着四步法填。填完点「检查方案」，缺什么会直接标出来；全通过就能导出带走，脱离平台也能照着做。</p>
+            <div id="spRows"></div>
+            <div class="dg-prac-actions">
+                <button class="btn-secondary" onclick="spCheck()">检查方案</button>
+                <button class="btn-secondary" onclick="spAddRow()">+ 加一个变量</button>
+                <button class="btn-secondary" onclick="spReset()">按我的变量重填</button>
+                <button class="btn-secondary" onclick="spExport()">导出带走</button>
+            </div>
+            <div id="spResult"></div>
+        </div>
+
         ${g.usage ? `
-        <div class="dg-section-title"><span class="dg-sec-num">5</span>数据到手之后做什么<span class="dg-sec-sub">五步，把下载的文件变成能跑回归的数据</span></div>
+        <div class="dg-section-title"><span class="dg-sec-num">6</span>数据到手之后做什么<span class="dg-sec-sub">五步，把下载的文件变成能跑回归的数据</span></div>
         <div class="dg-usage-compact">
             <div class="dg-uc-head"><div>#</div><div>做什么</div><div>为什么</div></div>
             ${g.usage.map((u, i) => `
@@ -2212,6 +2268,138 @@ function renderDataGuideStage(stageNum) {
 
     // 未完成时显示完成按钮
     if (!prog.completed) renderGuideCompletePanel(stageNum);
+    spRenderRows();
+}
+
+// ====== 阶段二：取数方案实操（自己填 → 检查 → 带走） ======
+function spVarsFromDesign() {
+    const rd = state.researchDesign || {};
+    const list = [];
+    if (rd.varY) list.push({ role: 'Y', name: String(rd.varY).slice(0, 40) });
+    if (rd.varX) list.push({ role: 'X', name: String(rd.varX).slice(0, 40) });
+    String(rd.controls || '').split(/[、,，;；\/]/).map(s => s.trim()).filter(Boolean).slice(0, 6)
+        .forEach(c => list.push({ role: '控制', name: c.slice(0, 40) }));
+    return list;
+}
+
+function spEnsure() {
+    if (!state.sourcingPlan) state.sourcingPlan = { rows: [], checkedAt: null };
+    if (!Array.isArray(state.sourcingPlan.rows) || !state.sourcingPlan.rows.length) {
+        state.sourcingPlan.rows = spVarsFromDesign().map(v =>
+            ({ role: v.role, varName: v.name, term: '', level: '', span: '', publisher: '', url: '' }));
+        saveState();
+    }
+    return state.sourcingPlan.rows;
+}
+
+function spRenderRows() {
+    const box = $('spRows');
+    if (!box) return;
+    const rows = spEnsure();
+    box.innerHTML = `
+        <div class="sp-head">
+            <div>变量</div><div>① 检索词</div><div>② 层面</div><div>② 频度·区间</div><div>③ 发布方</div><div>④ 链接</div><div></div>
+        </div>
+        ${rows.map((r, i) => `
+            <div class="sp-row">
+                <div class="sp-var"><span class="sp-role">${r.role}</span>${r.varName || '—'}</div>
+                <input class="sp-in" value="${(r.term || '').replace(/"/g, '&quot;')}" placeholder="官网里搜什么" oninput="spSet(${i},'term',this.value)">
+                <input class="sp-in" value="${(r.level || '').replace(/"/g, '&quot;')}" placeholder="省/市/企业" oninput="spSet(${i},'level',this.value)">
+                <input class="sp-in" value="${(r.span || '').replace(/"/g, '&quot;')}" placeholder="年度 2013-2023" oninput="spSet(${i},'span',this.value)">
+                <input class="sp-in" value="${(r.publisher || '').replace(/"/g, '&quot;')}" placeholder="谁在发布" oninput="spSet(${i},'publisher',this.value)">
+                <input class="sp-in" value="${(r.url || '').replace(/"/g, '&quot;')}" placeholder="官网/栏目" oninput="spSet(${i},'url',this.value)">
+                <button class="sp-del" onclick="spDelRow(${i})" title="删除">×</button>
+            </div>
+        `).join('')}
+    `;
+}
+
+function spSet(i, key, val) {
+    const rows = state.sourcingPlan.rows;
+    if (rows && rows[i]) { rows[i][key] = val; saveState(); }
+}
+
+function spAddRow() {
+    state.sourcingPlan.rows.push({ role: '新', varName: '', term: '', level: '', span: '', publisher: '', url: '' });
+    saveState();
+    spRenderRows();
+}
+
+function spDelRow(i) {
+    state.sourcingPlan.rows.splice(i, 1);
+    saveState();
+    spRenderRows();
+}
+
+function spReset() {
+    state.sourcingPlan.rows = spVarsFromDesign().map(v =>
+        ({ role: v.role, varName: v.name, term: '', level: '', span: '', publisher: '', url: '' }));
+    state.sourcingPlan.checkedAt = null;
+    saveState();
+    spRenderRows();
+    const r = $('spResult');
+    if (r) r.innerHTML = '';
+    showToast('已按你的研究变量重置', 'success');
+}
+
+// 检查：缺哪一步就点出来，并给一句怎么补
+function spCheck() {
+    const rows = spEnsure();
+    const res = $('spResult');
+    const items = [], gaps = [];
+    rows.forEach((r, i) => {
+        const miss = [];
+        const t = (r.term || '').trim();
+        if (!t) miss.push(['检索词', '写你会在官网搜索框里敲进去的词']);
+        else if (/^(数据|经济|发展|情况|指标|水平)$/.test(t)) miss.push(['检索词太泛', '换成官网上真实存在的指标名，如「居民人均消费支出」']);
+        if (!(r.level || '').trim()) miss.push(['层面', '写清国家/省/市/企业/个人']);
+        if (!(r.span || '').trim()) miss.push(['频度·区间', '写清年度/季度/月度 + 起止年份']);
+        const pub = (r.publisher || '').trim();
+        if (!pub) miss.push(['发布方', '想清楚谁在统计这件事，就写那个机构']);
+        else if (/(百度|知乎|微信|闲鱼|淘宝|谷歌|google)/i.test(pub)) miss.push(['发布方不权威', '换成发布该数据的官方机构或学校已购数据库']);
+        if (miss.length) {
+            gaps.push(i);
+            items.push(`<div class="sp-item bad"><span class="sp-item-var">${r.role} · ${r.varName || '未命名'}</span>缺：${miss.map(m => `「${m[0]}」`).join('')}<div class="sp-item-fix">${miss[0][1]}</div></div>`);
+        } else {
+            items.push(`<div class="sp-item ok"><span class="sp-item-var">${r.role} · ${r.varName || '未命名'}</span>四步齐全，可以照着去取</div>`);
+        }
+    });
+    const pass = rows.length - gaps.length;
+    state.sourcingPlan.checkedAt = new Date().toISOString();
+    state.sourcingPlan.passed = pass;
+    saveState();
+    const head = gaps.length
+        ? `<div class="sp-verdict bad">${pass}/${rows.length} 个变量写全了。补齐下面标出的项：</div>`
+        : `<div class="sp-verdict ok">✅ ${rows.length}/${rows.length} 个变量都写全了——方案可以导出带走，照着做就行。</div>`;
+    res.innerHTML = head + items.join('');
+    showToast(gaps.length ? `还有 ${gaps.length} 个变量没写全` : '方案完整，可以导出带走', gaps.length ? 'error' : 'success');
+}
+
+function spPlanText() {
+    const rd = state.researchDesign || {};
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const lines = [
+        '我的取数方案（离开平台也能照着做）',
+        `导出日期：${stamp}`,
+        `研究问题：${rd.question || '—'}`,
+        `Y：${rd.varY || '—'}    X：${rd.varX || '—'}`,
+        '',
+        '变量 | 角色 | 检索词 | 层面 | 频度·区间 | 发布方 | 链接'
+    ];
+    state.sourcingPlan.rows.forEach(r => {
+        lines.push([r.varName || '—', r.role, r.term || '—', r.level || '—', r.span || '—', r.publisher || '—', r.url || '—'].join(' | '));
+    });
+    lines.push('', '四步法提醒：① 变量→检索词 ② 定口径（层面+频度+区间+单位）③ 谁生产谁发布 ④ 试下载并留痕');
+    return lines.join('\n');
+}
+
+function spExport() {
+    const nm = (state.student && state.student.name) ? state.student.name : '我的研究';
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    dwDownload('\uFEFF' + spPlanText(), `取数方案_${nm}_${stamp}.txt`, 'text/plain;charset=utf-8');
+    showToast('已导出，可照着这份方案去取数', 'success');
 }
 
 // 数据源分类标签切换
@@ -2224,10 +2412,18 @@ function switchDgTab(catId) {
 function renderGuideCompletePanel(stageNum) {
     const area = $('dynamicArea');
     if (!area) return;
+    const sp = state.sourcingPlan || { rows: [] };
+    const total = sp.rows.length;
+    const passed = sp.rows.filter(r =>
+        r.term && !/^(数据|经济|发展|情况|指标|水平)$/.test(r.term.trim()) &&
+        r.level && r.span && r.publisher && !/(百度|知乎|微信|闲鱼|淘宝|谷歌|google)/i.test(r.publisher)
+    ).length;
+    const status = total === 0 ? '' : `（取数方案：${passed}/${total} 个变量写全了）`;
     area.innerHTML = `
         <div class="dg-complete-panel">
             <div class="dg-complete-text">
-                <strong>找到数据源和取数路径了？</strong>就可以进入阶段三；有疑问问左侧 AI 导师。
+                <strong>找到数据源和取数路径了？</strong>${status ? ` ${status}` : ''}
+                <span style="display:block;margin-top:4px;color:var(--text-secondary)">进入阶段三之前，建议把上面的取数方案填完并导出带走。</span>
             </div>
             <div class="dg-complete-actions">
                 <button class="btn-secondary" onclick="continueExplore(${stageNum})">深入探讨数据源问题</button>
