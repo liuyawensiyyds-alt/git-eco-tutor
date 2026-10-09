@@ -1005,10 +1005,6 @@ body {
     padding: 14px 16px; display: flex; flex-direction: column; gap: 11px;
 }
 .critique-box.teacher { border-left: 4px solid #f0b849; }
-.critique-teacher {
-    font-size: 14px; font-weight: 800; color: #8a5a12;
-    display: flex; align-items: center; gap: 6px;
-}
 .critique-chat {
     font-size: 13px; color: #4a3d2a; line-height: 1.75;
 }

@@ -3285,8 +3285,7 @@ function confusedHtml(stageNum, q) {
     const what = q.explain && q.explain.what ? q.explain.what : getQuestionGoal(q.recordKey);
     return `
         <div class="critique-box teacher">
-            <div class="critique-teacher">🧑‍🏫 老师来啦</div>
-            <div class="critique-chat">好，我懂了，你不是不想写，是还没搞明白这道题到底在问什么。别急，老师先用一句话讲清楚：</div>
+            <div class="critique-chat">好，我懂了，你不是不想写，是还没搞明白这道题到底在问什么。别急，我先用一句话讲清楚：</div>
             <div class="critique-what">${what}</div>
             <div class="critique-step"><strong>咱们先只解决这一小步：</strong>${firstStep}</div>
             ${example ? `<div class="critique-example"><strong>给你看个例子，你套进自己的研究里改一改：</strong>${example}</div>` : ''}
@@ -3329,7 +3328,6 @@ function critiqueHtml(stageNum, q, ans, grade, fails) {
 
     return `
         <div class="critique-box teacher">
-            <div class="critique-teacher">🧑‍🏫 老师来帮你一下</div>
             <div class="critique-chat">我看见你写的是「${quote}${String(ans).length > 40 ? '…' : ''}」，但这还没到这道题的点上。没关系，我们把它说清楚再改。</div>
             <div class="critique-what"><strong>这道题真正想问的是：</strong>${goal}</div>
             ${problemHtml}
