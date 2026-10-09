@@ -999,29 +999,44 @@ body {
 }
 .proactive-help-foot { font-size: 12px; color: #8a7a5a; line-height: 1.6; }
 
-/* ====== 答题纠错气泡（明确指出错在哪，不放任乱写） ====== */
+/* ====== 答题纠错气泡：老师口吻，先讲清楚再引导 ====== */
 .critique-box {
-    background: #fff6f4; border: 1px solid #f3cfc6; border-radius: 12px;
-    padding: 13px 15px; display: flex; flex-direction: column; gap: 10px;
+    background: #fffaf2; border: 1px solid #f3e1b8; border-radius: 14px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 11px;
 }
-.critique-title { font-size: 13.5px; font-weight: 800; color: #b1372a; }
+.critique-box.teacher { border-left: 4px solid #f0b849; }
+.critique-teacher {
+    font-size: 14px; font-weight: 800; color: #8a5a12;
+    display: flex; align-items: center; gap: 6px;
+}
+.critique-chat {
+    font-size: 13px; color: #4a3d2a; line-height: 1.75;
+}
 .critique-quote {
-    font-size: 12.5px; color: #7a5a52; background: #fff; border: 1px dashed #e6c3ba;
-    border-radius: 8px; padding: 8px 11px; line-height: 1.6; word-break: break-all;
+    font-size: 12.5px; color: #6b5b3a; background: #fff; border: 1px dashed #e6d2a8;
+    border-radius: 9px; padding: 8px 12px; line-height: 1.6; word-break: break-all;
 }
-.critique-item {
-    background: #fff; border: 1px solid #f0d2cb; border-radius: 9px; padding: 10px 12px;
-    display: flex; flex-direction: column; gap: 6px;
+.critique-what, .critique-step, .critique-problem, .critique-fix {
+    background: #fff; border-radius: 9px; padding: 10px 12px;
+    font-size: 13px; color: #3a3020; line-height: 1.75;
 }
-.critique-item-head { font-size: 13px; color: #4a2f2a; line-height: 1.7; }
-.critique-num {
-    display: inline-block; font-size: 11px; font-weight: 800; color: #fff; background: #c1493a;
-    border-radius: 5px; padding: 1px 6px; margin-right: 6px; vertical-align: 1px;
+.critique-what strong, .critique-step strong, .critique-problem strong, .critique-fix strong {
+    color: #7a4e0f;
 }
-.critique-fix { font-size: 12.5px; color: #2f5d3a; line-height: 1.7; }
-.critique-fix-tag {
-    display: inline-block; font-size: 11px; font-weight: 800; color: #2f5d3a; background: #e8f5ea;
-    border-radius: 5px; padding: 1px 6px; margin-right: 6px; vertical-align: 1px;
+.critique-problem strong { color: #9a3a2a; }
+.critique-fix strong { color: #2f5d3a; }
+.critique-example {
+    background: #f6fbff; border: 1px solid #d6e8f5; border-radius: 9px;
+    padding: 10px 12px; font-size: 12.5px; color: #2f4a5a; line-height: 1.75;
+}
+.critique-example strong { color: #2f6fd0; }
+.critique-next {
+    font-size: 13px; color: #4a3d2a; background: #fff; border-radius: 9px;
+    padding: 10px 12px; line-height: 1.75; border: 1px solid #f0e2bd;
+}
+.critique-next strong { color: #8a5a12; }
+.critique-more {
+    font-size: 12.5px; color: #6b5b3a; line-height: 1.7;
 }
 .critique-warns {
     background: #fffdf5; border: 1px solid #f0e2bd; border-radius: 9px; padding: 9px 12px;
@@ -1030,10 +1045,6 @@ body {
 .critique-warn-title { font-size: 12px; font-weight: 700; color: #8a6b1f; }
 .critique-warn { font-size: 12.5px; color: #6b5b3a; line-height: 1.65; }
 .critique-warn-fix { color: #8a7a5a; }
-.critique-ask {
-    font-size: 12.5px; color: #6b4a42; background: #fff; border-radius: 8px;
-    padding: 8px 11px; line-height: 1.65;
-}
 .critique-force { display: flex; }
 .critique-force-btn { font-size: 12.5px !important; padding: 7px 12px !important; }
 

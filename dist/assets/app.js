@@ -3259,33 +3259,83 @@ function checkAnswerQuality(stageNum, qIdx, ans) {
     return { errors, warns };
 }
 
-// 纠错气泡：指出错在哪 + 为什么 + 怎么改 + 重新追问（形成互动）
+// 学生说「我还是不懂」——切换到老师讲解模式，不批判
+function isMetaConfusion(ans) {
+    return /(不懂|不明白|不会|不知道|不清楚|没思路|没概念|什么意思|怎么写|咋写|教我|讲.*一下|给.*例子|解释一下|我还是|我搞不懂|能再说|再说一遍)/i.test(String(ans).trim());
+}
+
+function getQuestionGoal(recordKey) {
+    const goals = {
+        question: '研究问题：你要检验的「X 是否/如何影响 Y」。它必须是一个因果关系，而不是一个研究领域。',
+        varY: '被解释变量 Y：你研究的那个「结果」是什么、用什么指标和单位来度量。',
+        varX: '核心解释变量 X：你认为是「原因」的那个因素是什么、用什么指标和单位来度量（并且不能和 Y 一样）。',
+        controls: '控制变量：除了 X 之外，还有哪些因素会影响 Y？至少列 2—3 个，并说明为什么必须控制它们。'
+    };
+    return goals[recordKey] || '把题目要的核心内容用具体、可度量的方式写出来。';
+}
+
+function pickExample(stageNum, qIdx) {
+    return EXAMPLE_ANSWERS[`${stageNum}-${qIdx}`] || '';
+}
+
+// 学生表达困惑时：老师先讲清楚概念，再给一个最小步骤
+function confusedHtml(stageNum, q) {
+    const example = pickExample(stageNum, qIdx(q, stageNum));
+    const firstStep = (q.scaffold && q.scaffold[0]) || (q.hint || '先想想这道题最关键的词是什么');
+    const what = q.explain && q.explain.what ? q.explain.what : getQuestionGoal(q.recordKey);
+    return `
+        <div class="critique-box teacher">
+            <div class="critique-teacher">🧑‍🏫 老师来啦</div>
+            <div class="critique-chat">好，我懂了，你不是不想写，是还没搞明白这道题到底在问什么。别急，老师先用一句话讲清楚：</div>
+            <div class="critique-what">${what}</div>
+            <div class="critique-step"><strong>咱们先只解决这一小步：</strong>${firstStep}</div>
+            ${example ? `<div class="critique-example"><strong>给你看个例子，你套进自己的研究里改一改：</strong>${example}</div>` : ''}
+            <div class="critique-next">不用写完美答案，把这一小步想到的写进框里就行；想不出来再点「💡 我没思路」。</div>
+        </div>
+    `;
+}
+
+function qIdx(q, stageNum) {
+    const stage = stages[stageNum];
+    return stage.questions.indexOf(q);
+}
+
+// 纠错气泡：老师口吻——先讲清题目要什么，再指出差在哪，最后给例子和最小下一步
 function critiqueHtml(stageNum, q, ans, grade, fails) {
     const quote = String(ans).trim().slice(0, 40);
-    const errItems = grade.errors.map((e, i) => `
-        <div class="critique-item">
-            <div class="critique-item-head"><span class="critique-num">问题 ${i + 1}</span>${e.msg}</div>
-            <div class="critique-fix"><span class="critique-fix-tag">怎么改</span>${e.fix}</div>
-        </div>
-    `).join('');
-    const warnItems = grade.warns.length ? `
-        <div class="critique-warns">
-            <div class="critique-warn-title">另外提醒一下（不强制修改）</div>
+    const goal = getQuestionGoal(q.recordKey);
+    const example = pickExample(stageNum, qIdx(q, stageNum));
+
+    const mainErr = grade.errors[0];
+    const moreErrs = grade.errors.slice(1);
+    const problemHtml = `
+        <div class="critique-problem"><strong>你现在的回答差在哪：</strong>${mainErr.msg}</div>
+        <div class="critique-fix"><strong>应该改成这样：</strong>${mainErr.fix}</div>
+        ${moreErrs.length ? `<div class="critique-more"><strong>还有其他问题：</strong>${moreErrs.map(e => e.msg).join('；')}</div>` : ''}
+    `;
+
+    const warnHtml = grade.warns.length ? `
+        <div class="critique-warns" style="margin-top:10px">
+            <div class="critique-warn-title">老师再提醒一点（可以先继续，但最好记在心里）</div>
             ${grade.warns.map(w => `<div class="critique-warn">· ${w.msg} <span class="critique-warn-fix">${w.fix}</span></div>`).join('')}
         </div>
     ` : '';
+
     const forceBtn = fails >= 2 ? `
         <div class="critique-force">
-            <button class="btn-secondary critique-force-btn" onclick="forceAcceptAnswer(${stageNum})">我已经尽力改了，按这版继续（导师会记录此处需修改）</button>
+            <button class="btn-secondary critique-force-btn" onclick="forceAcceptAnswer(${stageNum})">我真的改不动了，按这版先继续</button>
         </div>
     ` : '';
+
     return `
-        <div class="critique-box">
-            <div class="critique-title">⚠️ 先别急着往下走，这一版还不对</div>
-            <div class="critique-quote">你写的是：「${quote}${String(ans).length > 40 ? '…' : ''}」</div>
-            ${errItems}
-            ${warnItems}
-            <div class="critique-ask">改完再点「提交回答」。写不出来就点「💡 我没思路」，我一步步带你找。</div>
+        <div class="critique-box teacher">
+            <div class="critique-teacher">🧑‍🏫 老师来帮你一下</div>
+            <div class="critique-chat">我看见你写的是「${quote}${String(ans).length > 40 ? '…' : ''}」，但这还没到这道题的点上。没关系，我们把它说清楚再改。</div>
+            <div class="critique-what"><strong>这道题真正想问的是：</strong>${goal}</div>
+            ${problemHtml}
+            ${example ? `<div class="critique-example"><strong>给你看个能直接套的例子：</strong>${example}</div>` : ''}
+            <div class="critique-next"><strong>现在请你重新写：</strong>${q.reAsk || q.text}</div>
+            ${warnHtml}
             ${forceBtn}
         </div>
     `;
@@ -3373,6 +3423,24 @@ async function submitAnswer(stageNum) {
         return;
     }
     
+    // 学生说「不懂/不会/没思路」：切换成老师讲解模式，不再冷冰冰地批判
+    if (!forceContinueFlag && q.quality && isMetaConfusion(ans)) {
+        await addMsg('user', escapeHTML(ans).replace(/\n/g, '<br>'));
+        // 自动把问题拆小一级
+        if (L0 && L0.showScaffold) {
+            const cur = (prog.scaffold && prog.scaffold[prog.qIdx]) || 0;
+            if (cur < 3) {
+                prog.scaffold = prog.scaffold || [];
+                prog.scaffold[prog.qIdx] = cur + 1;
+                saveState();
+            }
+        }
+        await addMsg('tutor', confusedHtml(stageNum, q));
+        renderInputPanel(stageNum);
+        showToast('老师把题目拆小了，看下面的提示', 'success');
+        return;
+    }
+
     // 答题质检：明确指出错在哪，改对了才往下走（阶段一研究设计）
     let pendingWarns = [];
     if (!forceContinueFlag && q.quality) {
@@ -3398,10 +3466,7 @@ async function submitAnswer(stageNum) {
                 }
             }
 
-            await addMsg('tutor',
-                critiqueHtml(stageNum, q, ans, grade, fails) +
-                `<div class="tutor-question">${q.reAsk || q.text}</div>`
-            );
+            await addMsg('tutor', critiqueHtml(stageNum, q, ans, grade, fails));
 
             // 保留草稿，方便在原句上改
             renderInputPanel(stageNum);
