@@ -390,7 +390,7 @@ const stages = {
                         fix: '改成「X 是否／如何影响 Y」的疑问句。例：最低工资标准上调是否降低了青年就业率？'
                     }],
                     mustNot: [
-                        { re: /(不知道|不清楚|随便|都行|无所谓|没有想法|想不出|不会写|太难了)/, msg: '这是放弃作答，导师不能放行——研究问题必须由你自己定。', fix: '哪怕不成熟，也先写一句你真正好奇的因果判断。' }
+                        { re: /(不知道|不清楚|随便|都行|无所谓|没有想法|想不出|不会写|太难了)/, msg: '这是放弃作答，这里不能放行——研究问题必须由你自己定。', fix: '哪怕不成熟，也先写一句你真正好奇的因果判断。' }
                     ]
                 },
                 reAsk: '请用一句话重写你要检验的因果：<strong>什么因素</strong>（X）影响<strong>什么结果</strong>（Y）？写成疑问句。',
@@ -3053,8 +3053,8 @@ function renderInputPanel(stageNum) {
         <div class="input-panel" id="inputPanel">
             <div class="input-panel-header">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5H17M3 10H17M3 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                <span>请回答导师的提问</span>
-                ${scaffoldOn ? `<span class="input-panel-tip">${stageNum === 1 ? '导师会逐条检查你的回答，答偏了会当场指出哪里不对；' : ''}写不出来不必硬撑，点「我没思路」，我带你一步步想</span>` : ''}
+                <span>请回答${state.level === 'beginner' ? '老师' : '导师'}的提问</span>
+                ${scaffoldOn ? `<span class="input-panel-tip">${stageNum === 1 ? '我会逐条看你的回答，答偏了会当场指出哪里不对；' : ''}写不出来不必硬撑，点「我没思路」，我带你一步步想</span>` : ''}
             </div>
             ${helpHtml}
             <textarea id="answerInput" class="text-input" rows="4" placeholder="在此输入你的思考...（想到多少写多少，写完可以再改）"></textarea>
@@ -3259,7 +3259,7 @@ function checkAnswerQuality(stageNum, qIdx, ans) {
     return { errors, warns };
 }
 
-// 学生说「我还是不懂」——切换到老师讲解模式，不批判
+// 学生说「我还是不懂」——老师讲清楚，不批判（初学者模式的导师本来就是老师身份）
 function isMetaConfusion(ans) {
     return /(不懂|不明白|不会|不知道|不清楚|没思路|没概念|什么意思|怎么写|咋写|教我|讲.*一下|给.*例子|解释一下|我还是|我搞不懂|能再说|再说一遍)/i.test(String(ans).trim());
 }
@@ -3315,7 +3315,7 @@ function critiqueHtml(stageNum, q, ans, grade, fails) {
 
     const warnHtml = grade.warns.length ? `
         <div class="critique-warns" style="margin-top:10px">
-            <div class="critique-warn-title">老师再提醒一点（可以先继续，但最好记在心里）</div>
+            <div class="critique-warn-title">再提醒一点（可以先继续，但最好记在心里）</div>
             ${grade.warns.map(w => `<div class="critique-warn">· ${w.msg} <span class="critique-warn-fix">${w.fix}</span></div>`).join('')}
         </div>
     ` : '';
@@ -3421,7 +3421,7 @@ async function submitAnswer(stageNum) {
         return;
     }
     
-    // 学生说「不懂/不会/没思路」：切换成老师讲解模式，不再冷冰冰地批判
+    // 学生说「不懂/不会/没思路」：老师本来就在带着你，这里只是把题目讲清楚，不批判
     if (!forceContinueFlag && q.quality && isMetaConfusion(ans)) {
         await addMsg('user', escapeHTML(ans).replace(/\n/g, '<br>'));
         // 自动把问题拆小一级
@@ -3435,7 +3435,7 @@ async function submitAnswer(stageNum) {
         }
         await addMsg('tutor', confusedHtml(stageNum, q));
         renderInputPanel(stageNum);
-        showToast('老师把题目拆小了，看下面的提示', 'success');
+        showToast('我把这一题拆小了一级，看下面的提示', 'success');
         return;
     }
 
@@ -3469,7 +3469,7 @@ async function submitAnswer(stageNum) {
             // 保留草稿，方便在原句上改
             renderInputPanel(stageNum);
             if ($('answerInput')) $('answerInput').value = ans;
-            showToast('这一版还不符合要求，请看导师标出的问题', 'error');
+            showToast('这一版还不符合要求，请看上面标出的地方', 'error');
             return;
         }
         if (grade.warns.length) {
@@ -3608,7 +3608,7 @@ function openHelp(stageNum) {
         <div class="input-panel" id="inputPanel" hidden>
             <div class="input-panel-header">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5H17M3 10H17M3 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                <span>请回答导师的提问</span>
+                <span>请回答${state.level === 'beginner' ? '老师' : '导师'}的提问</span>
             </div>
             <textarea id="answerInput" class="text-input" rows="4" placeholder="在此输入你的思考...">${userInput}</textarea>
             <div class="input-actions">
@@ -4803,8 +4803,9 @@ function toggleAIChat() {
         const stage = stages[stageNum];
         $('aiStageTag').textContent = stage ? `${stage.tag}·${stage.title}` : '';
         if (aiChatHistory.length === 0) {
-            // 首次打开，推送欢迎语
-            addAIMsg('system', `你好！我是 AI 导师。当前上下文：<b>${stage ? stage.title : '自由交流'}</b>。你可以就当前阶段或论文写作自由提问。`);
+            // 首次打开，推送欢迎语（初学者模式下我就是带你做研究的老师）
+            const roleName = state.level === 'beginner' ? 'AI 老师' : 'AI 导师';
+            addAIMsg('system', `你好！我是${roleName}。当前上下文：<b>${stage ? stage.title : '自由交流'}</b>。你可以就当前阶段或论文写作自由提问。`);
         }
         panel.hidden = false;
         setTimeout(() => $('aiChatInput')?.focus(), 200);
