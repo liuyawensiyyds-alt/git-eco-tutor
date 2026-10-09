@@ -3054,7 +3054,7 @@ function renderInputPanel(stageNum) {
             <div class="input-panel-header">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5H17M3 10H17M3 15H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 <span>请回答${state.level === 'beginner' ? '老师' : '导师'}的提问</span>
-                ${scaffoldOn ? `<span class="input-panel-tip">大胆写，我会帮你改；卡住点「我没思路」。</span>` : ''}
+                ${scaffoldOn ? `<span class="input-panel-tip">不知道从哪里入手，点「我没思路」</span>` : ''}
             </div>
             ${helpHtml}
             <textarea id="answerInput" class="text-input" rows="4" placeholder="在此输入你的思考...（想到多少写多少，写完可以再改）"></textarea>
