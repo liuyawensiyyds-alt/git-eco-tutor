@@ -1,0 +1,203 @@
+/* ==========================================================================
+   增量升级包 v3 · 样式追加段
+   --------------------------------------------------------------------------
+   用法：把本文件内容【整体追加】到 assets/styles.css 末尾即可。
+   不修改、不覆盖任何已有规则，只新增 .up3- 前缀的类，避免与原有样式冲突。
+   ========================================================================== */
+
+/* ---------- 通用外壳 ---------- */
+.up3-wrap { margin: 22px 0 8px; }
+.up3-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 16px 18px; margin-bottom: 16px;
+    background: linear-gradient(135deg, rgba(26,77,143,.06), rgba(45,125,210,.06));
+    border: 1px solid var(--border); border-left: 4px solid var(--primary-light);
+    border-radius: var(--radius-sm);
+}
+.up3-head-icon { font-size: 22px; line-height: 1.2; }
+.up3-head-t { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.up3-head-d { font-size: 13.5px; color: var(--text-secondary); line-height: 1.75; }
+
+/* ---------- 选项卡 ---------- */
+.up3-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.up3-tab {
+    padding: 8px 14px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--bg-card); color: var(--text-secondary);
+    cursor: pointer; transition: var(--transition); white-space: nowrap;
+}
+.up3-tab:hover { border-color: var(--primary-light); color: var(--primary); }
+.up3-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.up3-panel { display: none; }
+.up3-panel.active { display: block; animation: up3fade .25s ease; }
+@keyframes up3fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ---------- 步骤条 ---------- */
+.up3-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.up3-step {
+    flex: 1 1 150px; min-width: 140px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: var(--bg-card); border: 1px solid var(--border);
+    font-size: 12.5px; color: var(--text-secondary); line-height: 1.6;
+}
+.up3-step b { display: block; font-size: 13px; color: var(--text); margin-bottom: 2px; }
+.up3-step.on { border-color: var(--primary-light); background: rgba(45,125,210,.07); }
+.up3-step.on b { color: var(--primary); }
+
+/* ---------- 提示条 ---------- */
+.up3-note {
+    padding: 11px 14px; margin: 10px 0; font-size: 13px; line-height: 1.75;
+    border-radius: var(--radius-sm); border-left: 3px solid var(--primary-light);
+    background: rgba(45,125,210,.05); color: var(--text-secondary);
+}
+.up3-note.ok { border-left-color: var(--success); background: rgba(46,174,102,.07); }
+.up3-note.warn { border-left-color: var(--warning); background: rgba(232,168,56,.09); }
+.up3-note.err { border-left-color: var(--error); background: rgba(231,76,60,.07); }
+.up3-note b { color: var(--text); }
+
+/* ---------- 对照卡（合格 / 不合格） ---------- */
+.up3-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+@media (max-width: 860px) { .up3-pair { grid-template-columns: 1fr; } }
+.up3-sample {
+    padding: 14px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.8;
+    border: 1px solid var(--border); background: var(--bg-card);
+}
+.up3-sample.good { border-color: rgba(46,174,102,.45); background: rgba(46,174,102,.04); }
+.up3-sample.bad { border-color: rgba(231,76,60,.35); background: rgba(231,76,60,.035); }
+.up3-sample-tag {
+    display: inline-block; padding: 2px 9px; margin-bottom: 8px;
+    font-size: 11.5px; font-weight: 700; border-radius: 999px;
+}
+.up3-sample.good .up3-sample-tag { background: rgba(46,174,102,.16); color: #1d7a45; }
+.up3-sample.bad .up3-sample-tag { background: rgba(231,76,60,.14); color: #b03124; }
+.up3-sample-q { font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.up3-sample-a { color: var(--text-secondary); }
+.up3-sample-why { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--text-light); }
+.up3-sample-why b { color: var(--text-secondary); }
+
+/* ---------- 表格 ---------- */
+.up3-tbl-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.up3-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; background: var(--bg-card); }
+.up3-tbl th {
+    background: rgba(26,77,143,.06); color: var(--text); font-weight: 700;
+    text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.up3-tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); line-height: 1.7; vertical-align: top; }
+.up3-tbl tr:last-child td { border-bottom: none; }
+.up3-tbl code { padding: 1px 5px; border-radius: 4px; background: rgba(26,77,143,.07); color: var(--primary); font-size: 12px; }
+
+/* ---------- 折叠块 ---------- */
+.up3-fold { border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 10px 0; background: var(--bg-card); overflow: hidden; }
+.up3-fold > summary {
+    padding: 11px 14px; font-size: 13px; font-weight: 600; color: var(--text);
+    cursor: pointer; list-style: none; background: rgba(26,77,143,.035);
+}
+.up3-fold > summary::-webkit-details-marker { display: none; }
+.up3-fold > summary::before { content: '▸ '; color: var(--primary-light); font-weight: 700; }
+.up3-fold[open] > summary::before { content: '▾ '; }
+.up3-fold-body { padding: 12px 14px; font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
+
+/* ---------- 表单控件 ---------- */
+.up3-field { margin-bottom: 12px; }
+.up3-field > label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.up3-field .up3-hint { font-weight: 400; color: var(--text-light); font-size: 12px; margin-left: 6px; }
+.up3-in, .up3-sel, .up3-ta {
+    width: 100%; padding: 9px 11px; font-size: 13px; font-family: inherit;
+    color: var(--text); background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    transition: var(--transition);
+}
+.up3-in:focus, .up3-sel:focus, .up3-ta:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(45,125,210,.12); }
+.up3-ta { min-height: 78px; resize: vertical; line-height: 1.7; }
+.up3-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.up3-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .up3-row2, .up3-row3 { grid-template-columns: 1fr; } }
+
+.up3-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 16px; font-size: 13px; font-weight: 600;
+    border: none; border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition);
+    background: var(--primary); color: #fff;
+}
+.up3-btn:hover { background: var(--primary-dark); }
+.up3-btn.ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+.up3-btn.ghost:hover { background: rgba(26,77,143,.07); }
+.up3-btn.sm { padding: 6px 11px; font-size: 12px; }
+.up3-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------- 打分 / 适配结果 ---------- */
+.up3-score-box { padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); margin-top: 14px; }
+.up3-score-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.up3-score-num { font-size: 30px; font-weight: 800; line-height: 1; }
+.up3-score-num small { font-size: 14px; font-weight: 600; color: var(--text-light); }
+.up3-score-lv { padding: 3px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+.up3-score-lv.s3 { background: rgba(46,174,102,.14); color: #1d7a45; }
+.up3-score-lv.s2 { background: rgba(232,168,56,.18); color: #8a6100; }
+.up3-score-lv.s1 { background: rgba(231,76,60,.13); color: #b03124; }
+.up3-bar { height: 8px; border-radius: 999px; background: rgba(26,77,143,.09); overflow: hidden; margin: 8px 0 12px; }
+.up3-bar > i { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
+
+.up3-check-list { list-style: none; margin: 0; padding: 0; }
+.up3-check-list li {
+    display: flex; gap: 9px; padding: 8px 0; font-size: 12.8px; line-height: 1.75;
+    border-bottom: 1px dashed var(--border); color: var(--text-secondary);
+}
+.up3-check-list li:last-child { border-bottom: none; }
+.up3-check-list li .ico { flex-shrink: 0; font-weight: 700; }
+.up3-check-list li.pass .ico { color: var(--success); }
+.up3-check-list li.fail .ico { color: var(--error); }
+.up3-check-list li.warn .ico { color: var(--warning); }
+.up3-check-list li b { color: var(--text); }
+
+/* 四段式提示：错误原因 / 判定标准 / 缺失信息 / 错误根源 */
+.up3-why4 { display: grid; gap: 8px; margin-top: 8px; }
+.up3-why4 > div { padding: 9px 12px; border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.75; background: rgba(26,77,143,.035); border-left: 3px solid var(--border); }
+.up3-why4 > div.c1 { border-left-color: var(--error); }
+.up3-why4 > div.c2 { border-left-color: var(--warning); }
+.up3-why4 > div.c3 { border-left-color: var(--primary-light); }
+.up3-why4 > div.c4 { border-left-color: var(--accent-purple); }
+.up3-why4 .lb { display: block; font-weight: 700; color: var(--text); margin-bottom: 3px; font-size: 12px; }
+.up3-why4 code { padding: 1px 5px; border-radius: 4px; background: rgba(26,77,143,.08); color: var(--primary); font-size: 12px; }
+
+/* ---------- 变量清单（全变量强制） ---------- */
+.up3-varlist { display: grid; gap: 10px; margin: 12px 0; }
+.up3-varrow {
+    display: grid; grid-template-columns: 52px 1fr 1fr 100px 32px;
+    gap: 8px; align-items: center;
+    padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card);
+}
+.up3-varrow.miss { border-color: rgba(231,76,60,.45); background: rgba(231,76,60,.03); }
+.up3-varrole { font-size: 11.5px; font-weight: 700; text-align: center; padding: 4px 0; border-radius: 5px; }
+.up3-varrole.y { background: rgba(45,125,210,.12); color: var(--primary); }
+.up3-varrole.x { background: rgba(232,168,56,.16); color: #8a6100; }
+.up3-varrole.c { background: rgba(142,95,217,.12); color: #5c33a8; }
+.up3-varrole.m { background: rgba(27,168,155,.12); color: #0f7a70; }
+.up3-del { border: none; background: transparent; color: var(--text-light); font-size: 17px; cursor: pointer; line-height: 1; padding: 4px; border-radius: 4px; }
+.up3-del:hover { color: var(--error); background: rgba(231,76,60,.08); }
+.up3-varlist-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.up3-pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(26,77,143,.07); color: var(--primary); }
+@media (max-width: 760px) { .up3-varrow { grid-template-columns: 48px 1fr; } .up3-varrow > *:nth-child(n+3) { grid-column: 2; } }
+
+/* ---------- 状态徽章 ---------- */
+.up3-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.up3-badge.g { background: rgba(46,174,102,.14); color: #1d7a45; }
+.up3-badge.y { background: rgba(232,168,56,.18); color: #8a6100; }
+.up3-badge.r { background: rgba(231,76,60,.13); color: #b03124; }
+.up3-badge.b { background: rgba(45,125,210,.12); color: var(--primary); }
+
+/* ---------- 取数地图 ---------- */
+.up3-map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 14px; font-size: 12px; color: var(--text-light); }
+.up3-map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.up3-map-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.up3-src { font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
+.up3-src b { color: var(--text); }
+.up3-src .lv { display: inline-block; margin-left: 4px; font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: rgba(46,174,102,.14); color: #1d7a45; font-weight: 700; }
+.up3-src .lv.mid { background: rgba(232,168,56,.18); color: #8a6100; }
+.up3-src .lv.low { background: rgba(231,76,60,.13); color: #b03124; }
+
+/* ---------- 打印 ---------- */
+@media print {
+    .up3-tabs, .up3-btn { display: none !important; }
+    .up3-panel { display: block !important; }
+    .up3-fold > summary { pointer-events: none; }
+}
