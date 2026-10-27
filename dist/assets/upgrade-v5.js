@@ -2484,23 +2484,22 @@
     }
 
     /* ======================================================================
-       1. 讲解卡融合：把阶段一引导包塞进「从零讲起」
+       1. 讲解卡融合（v6）：按题配模块
        ------------------------------------------------------------------
-       getConceptCardHtml(q) 只在初学者模式被调用，返回固定模板：
-       <details ...><summary>...</summary><div class="concept-card-body">
-         <div class="concept-tabs">...按钮...</div>
-         <div class="concept-panel active">...</div>...
-       </div></details>
-       我们在最后加一个 tab + panel，内容就是阶段一引导包。
+       当前是第几问，就只在「不会写？点这里」里给对应的那一小块：
+       第1问→句型改写  第2问→Y  第3问→X  第4问→控制变量+自检
+       内容全部用学生自己的题目来解释，不再整包输出。
        ====================================================================== */
     function integrateConceptCard(origHtml, args) {
         if (typeof origHtml !== 'string' || !origHtml.includes('concept-card-body')) return origHtml;
         if (origHtml.includes('u3GuidePanel')) return origHtml;      // 防重复
         if (!/#stage1/.test(location.hash)) return origHtml;
-        if (!window.U3 || !U3.renderStage1Upgrade) return origHtml;
+        if (!window.U3 || !U3.qGuideHTML) return origHtml;
 
+        let qIdx = 0;
+        try { qIdx = state.progress[1].qIdx || 0; } catch (e) { }
         let html;
-        try { html = U3.renderStage1Upgrade(); } catch (e) { return origHtml; }
+        try { html = U3.qGuideHTML(qIdx); } catch (e) { return origHtml; }
 
         // 插 tab：在最后一个 </button> 后加一个
         let out = origHtml.replace(/(<\/button>)(\s*<\/div>\s*\n?\s*<div class="concept-panel)/,
@@ -2512,14 +2511,13 @@
         }
         // 插 panel：在 concept-card-body 的收尾 </div></details> 前
         out = out.replace(/<\/div>\s*<\/details>\s*$/,
-            `<div class="concept-panel">${html}</div></div></details>`);
+            `<div class="concept-panel" id="u3GuidePanel">${html}</div></div></details>`);
         return out;
     }
 
     /* ======================================================================
        2. 问答去僵化
-       ====================================================================== */
-    /* 从学生回答里挑出"值得点名"的词 */
+       ====================================================================== */    /* 从学生回答里挑出"值得点名"的词 */
     function pickStudentTokens(ans) {
         const s = String(ans).trim();
         const toks = [];
@@ -2634,10 +2632,49 @@
             return r;
         });
 
+        /* --- 老师换个说法（v6）：题目下面追加一句大白话，紧扣学生题目 --- */
+        wrapFn('askQuestion', function (r, args) {
+            const stageNum = Number(args[0]);
+            if (stageNum !== 1) return r;                            // 阶段一专属
+            try {
+                const area = $('dialogueArea');
+                if (!area) return r;
+                const inject = () => {
+                    const bubbles = area.querySelectorAll('.message.tutor .message-bubble');
+                    for (let i = bubbles.length - 1; i >= 0; i--) {
+                        const bub = bubbles[i];
+                        if (!bub.querySelector('.tutor-question')) continue;
+                        if (bub.querySelector('.u3-plain')) return false;
+                        const qdiv = bub.querySelector('.tutor-question');
+                        qdiv.insertAdjacentHTML('afterend', U3.plainSay(stageNum));
+                        return true;
+                    }
+                    return false;
+                };
+                const mo = new MutationObserver(() => { if (inject()) mo.disconnect(); });
+                mo.observe(area, { childList: true, subtree: true });
+                setTimeout(() => { try { inject(); } catch (e) { } mo.disconnect(); }, 2500);
+            } catch (e) { }
+            return r;
+        });
+
+        /* --- 同一问题不重复问（原站缺陷修正）：
+               原站 askQuestion 每次都追加一个新气泡，学生反复点"需要帮助"会看到同一个问题问很多遍。
+               这里每次提问后打扫对话区：同一段问题文字只保留最后一条，其余隐藏。 --- */
+        const origAsk2 = window.askQuestion;
+        window.askQuestion = function () {
+            const p = origAsk2.apply(this, arguments);
+            [1500, 3000, 4500].forEach(t => setTimeout(() => { try { U3.dedupeDialogue(); } catch (e) { } }, t));
+            if (p && typeof p.then === 'function') return p.then(v => { setTimeout(() => U3.dedupeDialogue(), 400); return v; });
+            return p;
+        };
+
         /* --- 阶段三（初学者/进阶的 renderStage 分支） --- */
         wrapFn('renderStage', function (r, args) {
             const n = Number(args[0]);
             if (n === 2) setTimeout(() => { try { afterStage2(); } catch (e) { console.warn(e); } }, 400);
+            /* 进任何阶段都打扫一次重复提问（含"需要帮助"反复触发的场景） */
+            [2000, 4000].forEach(t => setTimeout(() => { try { U3.dedupeDialogue(); } catch (e) { } }, t));
             return r;
         });
 
@@ -2676,14 +2713,14 @@
 
 })();
 /* ==========================================================================
-   增量升级包 v5 · Part 6：阶段二（数据收集）分步引导 + 找完数据帮我检查
+   增量升级包 v6 · Part 6：按题配引导 + 白话引导 + 阶段二融入式检查
    --------------------------------------------------------------------------
-   位置：阶段二页面底部追加一张卡（仅初学者模式），不改原有任何内容。
-   学生找完数据后填一张小表，系统帮他检查：
-     · 指标名是不是官方叫法（匹配内置指标库，给建议名）
-     · 来源是不是官方权威渠道（识别非官方来源）
-     · 年份跨度 / 频度 / 单位 是否填对
-   报告分三档：❌必须改 / ⚠️建议改 / 💡可以更好，每条写清"怎么改 + 为什么要改"。
+   v6 三处改动：
+   A. 阶段一「不会写？点这里」不再一次给全部内容——
+      当前是第几问，就只显示对应的那一小块（一对一，简洁、紧扣该题）。
+   B. 老师提问下面追加一句「老师换个说法」大白话，全部用学生自己的题目来解释。
+   C. 阶段二的引导三步拆开，融进原有 6 个模块对应位置；
+      「找完数据帮我检查」放在「练一遍：取数方案」紧后面，不再单独挂底。
    ========================================================================== */
 (function () {
     'use strict';
@@ -2691,36 +2728,223 @@
     const esc = U3.esc;
 
     /* ======================================================================
-       1. 三步分步引导
+       D. 对话区去重：同一段问题文字只保留最后一条气泡
        ====================================================================== */
-    U3.STAGE2_GUIDE = [
-        {
-            t: '第 1 步 · 进对门：先想清楚该去哪个官网',
-            what: '宏观、金融、产业、国际、微观调查五大类，每类都有 1~2 个"官方第一站"。别一上来就百度搜数据，百度给你的大多是别人嚼过的二手表。',
-            how: '用上面「数据源导航」按你的变量类型点进对应官网。Y 和 X 可能不在同一个库——很正常，分开找。',
-            common: '常见错：①在百度文库 / 知乎下载来路不明的表格；②指望在"国家统计局"一个库里找齐所有变量。',
-            confirm: '过关标准：能说出你的 Y 和 X 分别打算去哪个官网找。'
-        },
-        {
-            t: '第 2 步 · 搜对词：用官网的指标名，不用你自己的叫法',
-            what: '官网搜索框认的是官方指标名，比如你写"老百姓花钱情况"是搜不到的，要搜「居民人均消费支出」。',
-            how: '先在上面「指标翻译器」把你的口语叫法翻成官方指标名（记下 2~3 个同义词），再拿去官网搜索框搜。',
-            common: '常见错：用论文里的"发展水平""数字化程度"这种组合词去搜——官网没有这种指标，要拆成可查的具体指标。',
-            confirm: '过关标准：在官网里真的搜到了数据列，而不是只在百度里看到过。'
-        },
-        {
-            t: '第 3 步 · 核对四件事，再下载',
-            what: '下载前必须核对：①口径（全国/分省？覆盖哪些地区）②单位（元/万元/%）③年份起止 ④频度（年度/季度/月度）。',
-            how: '对照你的研究设计：层级要一致（研究分省就下载分省）、年份要够（面板至少近 10 年）、单位抄进变量清单。',
-            common: '常见错：①下载完才发现是"全国合计"不是"分省"；②单位是万元却当成元写进论文；③年份断断续续没发现。',
-            confirm: '过关标准：下载的表头里能指出口径、单位、年份、频度分别是什么。'
-        }
-    ];
+    U3.dedupeDialogue = function () {
+        const area = document.getElementById('dialogueArea');
+        if (!area) return;
+        const groups = new Map();
+        area.querySelectorAll('.message.tutor .tutor-question').forEach(el => {
+            const key = el.textContent.replace(/\s+/g, '').slice(0, 30);
+            if (!key) return;                          // 打字动画还没写完
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(el);
+        });
+        groups.forEach(list => {
+            if (list.length < 2) return;
+            list.forEach((el, i) => {
+                const msg = el.closest('.message');
+                if (!msg) return;
+                msg.style.display = (i === list.length - 1) ? '' : 'none';
+            });
+        });
+    };
 
     /* ======================================================================
-       2. 检查引擎：读学生填的自查表，输出三档报告
+       0. 读学生的题目（用自己的题，不用别的例子）
        ====================================================================== */
-    const OFFICIAL_SRC = /统计局|国家数据|央行|中国人民银行|财政部|海关|生态环境|人力资源|住建|教育部|农业农村|水利|卫生健康|交通|科技部|工业和信息化|wind|csmar|cnki|知网|世界银行|world\s?bank|oecd|imf|国际货币基金|联合国|comtrade|eurostat|penn\s?world|pwt/i;
+    U3.studentTopic = function () {
+        const rd = (typeof state !== 'undefined' && state.researchDesign) || {};
+        const draft = (document.getElementById('answerInput') || {}).value || '';
+        const prog = (typeof state !== 'undefined' && state.progress && state.progress[1]) || {};
+        const tries = (prog.attempts || []).length;
+        let q = String(rd.question || '').trim();
+        if (!q && tries) { /* 第一问还没存档时，兜底用草稿里带问号的句子 */ }
+        return {
+            question: q,
+            varY: String(rd.varY || '').trim(),
+            varX: String(rd.varX || '').trim(),
+            controls: String(rd.controls || '').trim(),
+            draft: draft.trim()
+        };
+    };
+
+    /* ======================================================================
+       A. 阶段一：按题配的引导（一个问题一块，简洁）
+       ====================================================================== */
+    function topicLine(t) {
+        /* 把学生的题目变成讲解里的"主角" */
+        if (t.question) return `你写的题目是「${esc(t.question)}」`;
+        if (t.draft) return `你刚才写的「${esc(t.draft.slice(0, 30))}${t.draft.length > 30 ? '…' : ''}」`;
+        return '你还没写下想研究的题目';
+    }
+
+    const GUIDE_BY_Q = {
+        0: {
+            title: '把想法变成一句话的研究问题',
+            body: t => {
+                const q = t.question || t.draft;
+                return `
+                <p style="margin:0 0 6px"><b>这一题只做一件事：</b>把你好奇的事，写成「X 变了，Y 会怎样？」的问句。</p>
+                ${q ? `
+                <div class="up3-note warn" style="margin:8px 0">
+                    ${topicLine(t)}。检查两下：<br>
+                    ① 里面有没有「谁→谁」的方向？（没有就补上）<br>
+                    ② 结尾能不能改成问号？（陈述句改问句就是研究问题）
+                </div>
+                <p style="margin:0"><b>套这两个句式改一改：</b>「____ 增加了，____ 会减少吗？」「____ 越高，____ 是否越高？」——把你的两个东西填进去就行。</p>`
+                : `
+                <p style="margin:0 0 6px">先别管术语，想想你平时刷到的让你好奇的事：</p>
+                <p style="margin:0 0 6px">「外卖涨价了，点的人会变少吗？」「城市越大，上班时间越长吗？」</p>
+                <p style="margin:0 0 6px"><b>套这两个句式改一改：</b>「____ 增加了，____ 会减少吗？」「____ 越高，____ 是否越高？」——把你好奇的两个东西填进去。</p>
+                <p style="margin:0">写好填进上面答题框就行。</p>`}
+                <div class="up3-note ok" style="margin-top:8px">过关标准：一句话、带问号、里面能看出"谁影响谁"。</div>`;
+            }
+        },
+        1: {
+            title: '找出你题目里的"果"（Y）',
+            body: t => {
+                const src = t.varY ? `你写的「${esc(t.varY)}」` : (t.question ? `你的题目「${esc(t.question)}」` : '你的题目');
+                return `
+                <p style="margin:0 0 6px"><b>Y 就是"果"：</b>你研究中最后变动、被别人影响的东西。</p>
+                <p style="margin:0 0 6px">${src}——问自己：这里头<b>等着的那个结果</b>是什么？它就是 Y。</p>
+                <p style="margin:0 0 6px"><b>这题的真正要求：</b>光写名字不行，还要说清<b>拿什么数来量它</b>：哪个指标、什么单位、哪一年到哪一年。</p>
+                <p style="margin:0">比如量"消费"用「居民人均消费支出（元/年）」，量"空气"用「PM2.5 年均浓度（微克/立方米）」。照这个格式写你的。</p>
+                <div class="up3-note ok" style="margin-top:8px">过关标准：Y = 指标名 + 单位 + 数据来源三个都写了。</div>`;
+            }
+        },
+        2: {
+            title: '找出你题目里的"因"（X）',
+            body: t => {
+                const src = t.varX ? `你写的「${esc(t.varX)}」` : (t.question ? `你的题目「${esc(t.question)}」` : '你的题目');
+                return `
+                <p style="margin:0 0 6px"><b>X 就是"因"：</b>你怀疑是<b>它</b>在影响 Y 的那个东西。</p>
+                <p style="margin:0 0 6px">${src}——问自己：我猜是谁<b>引起</b>了那个结果？它就是 X。</p>
+                <p style="margin:0 0 6px"><b>两个坑别踩：</b>① X 和 Y 不能是同一个东西（"消费影响消费"没法研究）；② X 也要写清指标和单位，跟 Y 一样的标准。</p>
+                <p style="margin:0">写完读一遍这句话："____（X）变了，____（Y）跟着变"——通顺，就对了。</p>
+                <div class="up3-note ok" style="margin-top:8px">过关标准：X 有指标名和单位，且和 Y 不是一回事。</div>`;
+            }
+        },
+        3: {
+            title: '把"第三者"排掉（控制变量）',
+            body: t => {
+                const src = t.question ? `拿你的题目「${esc(t.question)}」来说` : '拿你的题目来说';
+                return `
+                <p style="margin:0 0 6px"><b>这题在问"第三者"：</b>除了你的 X，还有什么东西也在同时影响 Y？</p>
+                <p style="margin:0 0 6px">${src}——如果不把"第三者"排掉，别人会质疑：你看到的 Y 变化，会不会其实是"第三者"干的，跟 X 没关系？</p>
+                <p style="margin:0 0 6px"><b>找法：</b>想三个"这类研究大家都会提"的：① 经济水平 ② 人口规模 ③ 产业结构/政策。跟你题目对得上就写上，再各配一句"为什么要控制它"。</p>
+                <p style="margin:0">写 2~3 个就够，每个都要说清"它为什么也会影响 Y"。</p>
+                <div class="up3-note ok" style="margin-top:8px">过关标准：每个控制变量后面都跟了一句"为什么"。</div>
+                <details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;color:var(--text-light)">交卷前 30 秒自检（点开）</summary>
+                    <div style="font-size:13px;line-height:1.8;margin-top:4px">
+                    ① 研究问题是问句吗？② Y 和 X 都有指标、单位了吗？③ X 和 Y 不是同一个东西吧？④ 控制变量带"为什么"了吗？——全"是"就可以提交了。
+                    </div>
+                </details>`;
+            }
+        }
+    };
+
+    U3.qGuideHTML = function (qIdx) {
+        const g = GUIDE_BY_Q[qIdx] || GUIDE_BY_Q[0];
+        const t = U3.studentTopic();
+        return `
+        <div class="up3-note" style="margin:0 0 8px"><b>只讲这一题：</b>${esc(g.title)}</div>
+        <div style="font-size:13.5px;line-height:1.8;color:var(--text)">${g.body(t)}</div>`;
+    };
+
+    /* ======================================================================
+       B. 白话引导：老师提问后追加"换个说法"，紧扣学生题目
+       ====================================================================== */
+    U3.plainSay = function (stageNum) {
+        const prog = (typeof state !== 'undefined' && state.progress && state.progress[stageNum]) || {};
+        const t = U3.studentTopic();
+        const q = t.question || t.draft;
+        const M = {
+            0: q
+                ? `老师用大白话说一遍这道题：你写了「${esc(q)}」——这道题就是让你把这句话再磨一磨：里头谁是因、谁是果？能不能改成带问号的一句？改好就过关。`
+                : `老师用大白话说：这题就是让你把"你好奇的一件事"写成一句带问号的话。不用背术语，想到啥写啥，比如"外卖涨价了，点的人会变少吗？"`,
+            1: q
+                ? `大白话版：你的题目是「${esc(q)}」。这题让你挑"果"——这句话里最后变的那个东西就是 Y。挑出来之后，再补一句"拿哪个数、什么单位来量它"。`
+                : `大白话版：这题让你挑"果"——你想解释的那个结果是什么？光报名字不行，还得说清拿哪个数、什么单位来量它。`,
+            2: q
+                ? `大白话版：你的题目是「${esc(q)}」。这题让你挑"因"——你猜是谁引起了那个结果？那就是 X。同样要写指标和单位，而且它不能跟 Y 是一回事。`
+                : `大白话版：这题让你挑"因"——你怀疑是谁引起了刚才那个"果"？把它写出来，配上指标和单位。`,
+            3: q
+                ? `大白话版：你的题目是「${esc(q)}」。这题让你排"第三者"——除了你的 X，还有谁也在偷偷影响 Y？写出 2~3 个，每个带一句"为什么要管它"。`
+                : `大白话版：这题让你排"第三者"——除了你的 X，还有谁也在影响 Y？写出 2~3 个，每个带一句"为什么要管它"。`
+        };
+        const say = M[String(prog.qIdx)] || M[0];
+        return `<div class="u3-plain">💡 老师换个说法：${say}</div>`;
+    };
+
+    /* ======================================================================
+       C. 阶段二：三步引导拆开融入 + 检查表贴在"练一遍"后面
+       ====================================================================== */
+    const GUIDE2 = {
+        s1: {
+            t: '📍 老师提醒 · 第①步最容易走偏：别去百度搜表',
+            html: `<span>上面四步法的第①②步，说穿了就一句话：<b>先用「指标翻译器」把你的口语叫法换成官方指标名，再拿这个名字进官网搜。</b>百度搜出来的表多半被别人加工过，口径不明，答辩时说不出原始出处。Y 和 X 可能不在同一个库——很正常，分开找。</span>`
+        },
+        s2: {
+            t: '📍 老师提醒 · 用右边/上面的库时，先看"层级"对不对',
+            html: `<span>选库先问一句：<b>你的研究是分省、全国还是企业？</b>研究分省就别点开全国合计的表。点进去先看它的"覆盖范围"那一栏，对得上再往下翻。</span>`
+        },
+        s3: {
+            t: '📍 老师提醒 · 下载前 30 秒，核对四件事',
+            html: `<span>① <b>口径</b>（全国还是分省？含哪些地区）② <b>单位</b>（元还是万元？%）③ <b>年份起止</b>（面板至少近 10 年）④ <b>频度</b>（年度/季度/月度）。四件事都指着表头说出来，再点下载——不然下了才发现拿错，白忙一场。</span>`
+        }
+    };
+
+    function guideNote(key) {
+        const g = GUIDE2[key];
+        return `<div class="up3-note warn u3-woven" data-u3w="${key}" style="margin:10px 0">
+            <div style="font-weight:700;font-size:13px;margin-bottom:3px">${esc(g.t)}</div>
+            <div style="font-size:13px;line-height:1.7">${g.html}</div></div>`;
+    }
+
+    U3.weaveStage2 = function () {
+        const page = document.getElementById('pageStage');
+        if (!page || page.hidden) return;
+        if (!/#stage2/.test(location.hash)) return;
+        const lv = (typeof currentLevel === 'function') ? currentLevel() : null;
+        if (lv !== 'beginner') return;
+        const box = document.getElementById('stageContainer');
+        if (!box || box.dataset.u3woven === '1') return;
+
+        let woven = 0;
+        /* 第①步提醒 → 融进「1 先学方法」四步法表格之后 */
+        const method = box.querySelector('.dg-method');
+        if (method && !box.querySelector('[data-u3w="s1"]')) {
+            method.insertAdjacentHTML('afterend', guideNote('s1')); woven++;
+        }
+        /* 第②步提醒 → 融进「2 数据源导航」面板之后 */
+        const panels = box.querySelector('.dg-panels');
+        if (panels && !box.querySelector('[data-u3w="s2"]')) {
+            panels.insertAdjacentHTML('afterend', guideNote('s2')); woven++;
+        }
+        /* 第③步提醒 → 融进「5 练一遍」练习表之前（先核对再动手） */
+        const practice = box.querySelector('.dg-practice');
+        if (practice && !box.querySelector('[data-u3w="s3"]')) {
+            practice.insertAdjacentHTML('beforebegin', guideNote('s3')); woven++;
+        }
+        /* 检查表 → 贴在「练一遍」练习表正后面（学生做完就查，不再挂底） */
+        if (practice && !box.querySelector('#u3Stage2CheckHost')) {
+            const host = document.createElement('div');
+            host.id = 'u3Stage2CheckHost';
+            host.innerHTML = U3.renderStage2Check();
+            practice.insertAdjacentElement('afterend', host); woven++;
+        }
+        if (woven) box.dataset.u3woven = '1';
+        return woven;
+    };
+
+    /* 兼容旧调用名 */
+    U3._mountStage2Check = function () { try { U3.weaveStage2(); } catch (e) { console.warn('[U3] weave', e); } };
+
+    /* ======================================================================
+       检查引擎（同 v5，未改动逻辑）
+       ====================================================================== */
+    const OFFICIAL_SRC = /统计局|国家数据|央行|中国人民银行|财政部|海关|生态环境|人力资源|住建|教育部|农业农村|水利|卫生健康|交通|科技部|工业和信息化|wind|csmar|cnki|知网|世界银行|world\s?bank|oecd|imf|国际货币基金|联合国|comtrade|eurostat|penn\s?world|pwt|北大数字金融/i;
     const UNOFFICIAL_SRC = /百度|知乎|博客|公众号|抖音|b站|bilibili|小红书|维基|wiki|csdn|文库|网友|淘宝|闲鱼/i;
 
     U3.checkCollect = function () {
@@ -2733,7 +2957,6 @@
         const yName = g('u3cY'), xName = g('u3cX'), src = g('u3cSrc');
         const y1 = g('u3cY1'), y2 = g('u3cY2'), freq = g('u3cFreq'), unit = g('u3cUnit');
 
-        /* -- 0. 填了吗 -- */
         if (!yName && !xName && !src) {
             M('完成度', '检查表还是空的——先把你要的 Y、X 和数据来源填上再检查。',
                 '上面三个空：Y 指标名、X 指标名、来源，随便写你现在的真实进度。',
@@ -2742,7 +2965,6 @@
             return out;
         }
 
-        /* -- 1. 指标名是不是官方叫法 -- */
         [[yName, 'Y'], [xName, 'X']].forEach(([name, role]) => {
             if (!name) {
                 M('指标名', role + ' 指标名还没填。',
@@ -2770,14 +2992,13 @@
             }
         });
 
-        /* -- 2. 来源 -- */
         if (!src) {
             M('来源', '数据来源没写。',
                 '写到"库名 + 栏目"，如「国家统计局·分省年度数据·人民生活」。',
                 '没有来源的数据在论文里站不住，老师第一句就会问"数从哪来的"。');
         } else if (UNOFFICIAL_SRC.test(src)) {
             M('来源', '「' + esc(src) + '」不是官方数据渠道，这种来源的表往往被加工过、口径不明。',
-                '顺着二手表上的指标名，去官网重新下一份原始数据；找不到再回「数据源导航」换近义指标。',
+                '顺着二手表上的指标名，去官网重新下一份原始数据；找不到再回上面「数据源导航」换近义指标。',
                 '二手数据错一个数，整篇论文的结论都不可信，而且答辩时说不出原始出处。');
         } else if (!OFFICIAL_SRC.test(src)) {
             S('来源', '来源「' + esc(src) + '」看不出是不是官方渠道。',
@@ -2789,7 +3010,6 @@
                 '论文附表里能写清"数据下载于××年×月，来自××官网"，是加分细节。');
         }
 
-        /* -- 3. 年份跨度 -- */
         if (!y1 || !y2) {
             M('年份', '覆盖年份没填全。',
                 '写你实际下载的起止年，如 2013—2022。',
@@ -2816,7 +3036,6 @@
             }
         }
 
-        /* -- 4. 频度 -- */
         if (!freq) {
             S('频度', '数据频度没选（年度/季度/月度）。',
                 '按你实际下载的表选一个；宏观经济研究一般用年度。',
@@ -2827,7 +3046,6 @@
                 '频度不齐直接合并会出现大量缺失或虚假样本。');
         }
 
-        /* -- 5. 单位 -- */
         if (!unit) {
             M('单位', '计量单位没写。',
                 '抄官网表头旁边的单位（元、万元、%、件……）。',
@@ -2842,9 +3060,6 @@
         return out;
     };
 
-    /* ======================================================================
-       3. 渲染
-       ====================================================================== */
     function itemHtml(it, tag) {
         return `
         <div style="padding:11px 0;border-bottom:1px dashed var(--border)">
@@ -2891,7 +3106,6 @@
         renderReport(d);
     };
 
-    /* 演示：构造一份"找错了"的自查表，让学生看到检查长什么样 */
     U3.collectDemo = function () {
         const F = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
         if (!document.getElementById('u3cOut')) return;
@@ -2903,71 +3117,36 @@
         renderReport(U3.checkCollect());
     };
 
-    /* ======================================================================
-       4. 卡片渲染 + 挂载（由 part5 在进入阶段二时调用）
-       ====================================================================== */
+    /* 检查表（贴在"练一遍"后面用的紧凑版） */
     U3.renderStage2Check = function () {
-        const guide = U3.STAGE2_GUIDE.map((s, i) => `
-            <details class="up3-fold"${i === 0 ? ' open' : ''}>
-                <summary><b>${esc(s.t)}</b></summary>
-                <div style="padding:10px 14px 12px">
-                    <div style="font-size:13.5px;line-height:1.7;color:var(--text)">${esc(s.what)}</div>
-                    <div class="up3-why4" style="margin-top:8px">
-                        <div class="c3"><span class="lb">怎么做</span>${esc(s.how)}</div>
-                        <div class="c1"><span class="lb">小心这个坑</span>${esc(s.common)}</div>
-                    </div>
-                    <div class="up3-note ok" style="margin-top:8px">${esc(s.confirm)}</div>
-                </div>
-            </details>`).join('');
-
         return `
-        <div class="up3-block" id="u3Stage2CheckCard" style="margin-top:18px">
-            <div style="font-weight:700;font-size:15px;margin-bottom:4px">🧪 数据收集：分步引导 + 找完数据帮我检查</div>
-            <div style="font-size:12.5px;color:var(--text-light);margin-bottom:10px">先按三步找数据 → 找到后填下面的小表 → 我帮你检查找得对不对、怎么改、还能怎么提升。</div>
-            ${guide}
-            <details class="up3-fold" style="margin-top:12px">
-                <summary><b>✅ 找到数据了？填这里，我帮你检查（2 分钟）</b></summary>
-                <div style="padding:10px 14px 14px">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px">
-                        <label style="font-size:12.5px">Y（被解释变量）你在官网搜到的指标名
-                            <input id="u3cY" class="up3-input" placeholder="如：居民人均消费支出" style="width:100%;margin-top:3px"></label>
-                        <label style="font-size:12.5px">X（核心解释变量）指标名
-                            <input id="u3cX" class="up3-input" placeholder="如：数字普惠金融指数" style="width:100%;margin-top:3px"></label>
-                        <label style="font-size:12.5px">从哪个库下载的（库名 + 栏目）
-                            <input id="u3cSrc" class="up3-input" placeholder="如：国家统计局·分省年度数据" style="width:100%;margin-top:3px"></label>
-                        <label style="font-size:12.5px">计量单位
-                            <input id="u3cUnit" class="up3-input" placeholder="如：元 / % / 万人" style="width:100%;margin-top:3px"></label>
-                        <label style="font-size:12.5px">年份起
-                            <input id="u3cY1" class="up3-input" placeholder="如：2013" style="width:100%;margin-top:3px"></label>
-                        <label style="font-size:12.5px">年份止
-                            <input id="u3cY2" class="up3-input" placeholder="如：2022" style="width:100%;margin-top:3px"></label>
-                        <label style="font-size:12.5px">数据频度
-                            <select id="u3cFreq" class="up3-input" style="width:100%;margin-top:3px">
-                                <option value="">（先不选）</option><option>年度</option><option>季度</option><option>月度</option>
-                            </select></label>
-                    </div>
-                    <div style="margin-top:12px">
-                        <button class="up3-btn" onclick="U3.runCollectCheck()">🔍 帮我检查我找的数据</button>
-                        <button class="up3-btn ghost" style="margin-left:8px" onclick="U3.collectDemo()">看一份"找错了数据"的检查示范</button>
-                    </div>
-                    <div id="u3cOut"></div>
-                </div>
-            </details>
+        <div class="up3-block" id="u3Stage2CheckCard" style="margin:14px 0 18px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px">🧪 找到数据了？填这里，老师帮你检查（2 分钟）</div>
+            <div style="font-size:12.5px;color:var(--text-light);margin-bottom:10px">对照上一节"核对四件事"，把你找的情况填进来 —— 检查找得对不对、怎么改、还能怎么提升。</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px">
+                <label style="font-size:12.5px">Y（被解释变量）你在官网搜到的指标名
+                    <input id="u3cY" class="up3-input" placeholder="如：居民人均消费支出" style="width:100%;margin-top:3px"></label>
+                <label style="font-size:12.5px">X（核心解释变量）指标名
+                    <input id="u3cX" class="up3-input" placeholder="如：数字普惠金融指数" style="width:100%;margin-top:3px"></label>
+                <label style="font-size:12.5px">从哪个库下载的（库名 + 栏目）
+                    <input id="u3cSrc" class="up3-input" placeholder="如：国家统计局·分省年度数据" style="width:100%;margin-top:3px"></label>
+                <label style="font-size:12.5px">计量单位
+                    <input id="u3cUnit" class="up3-input" placeholder="如：元 / % / 万人" style="width:100%;margin-top:3px"></label>
+                <label style="font-size:12.5px">年份起
+                    <input id="u3cY1" class="up3-input" placeholder="如：2013" style="width:100%;margin-top:3px"></label>
+                <label style="font-size:12.5px">年份止
+                    <input id="u3cY2" class="up3-input" placeholder="如：2022" style="width:100%;margin-top:3px"></label>
+                <label style="font-size:12.5px">数据频度
+                    <select id="u3cFreq" class="up3-input" style="width:100%;margin-top:3px">
+                        <option value="">（先不选）</option><option>年度</option><option>季度</option><option>月度</option>
+                    </select></label>
+            </div>
+            <div style="margin-top:12px">
+                <button class="up3-btn" onclick="U3.runCollectCheck()">🔍 帮我检查我找的数据</button>
+                <button class="up3-btn ghost" style="margin-left:8px" onclick="U3.collectDemo()">看一份"找错了数据"的检查示范</button>
+            </div>
+            <div id="u3cOut"></div>
         </div>`;
-    };
-
-    U3._mountStage2Check = function () {
-        const page = document.getElementById('pageStage');
-        if (!page || page.hidden) return;
-        if (!/#stage2/.test(location.hash)) return;
-        const lv = (typeof currentLevel === 'function') ? currentLevel() : null;
-        if (lv !== 'beginner') return;                       // 只在初学者模式
-        const box = document.getElementById('stageContainer');
-        if (!box || document.getElementById('u3Stage2CheckHost')) return;
-        const host = document.createElement('div');
-        host.id = 'u3Stage2CheckHost';
-        host.innerHTML = U3.renderStage2Check();
-        box.appendChild(host);
     };
 
 })();
