@@ -2632,32 +2632,6 @@
             return r;
         });
 
-        /* --- 老师换个说法（v6）：题目下面追加一句大白话，紧扣学生题目 --- */
-        wrapFn('askQuestion', function (r, args) {
-            const stageNum = Number(args[0]);
-            if (stageNum !== 1) return r;                            // 阶段一专属
-            try {
-                const area = $('dialogueArea');
-                if (!area) return r;
-                const inject = () => {
-                    const bubbles = area.querySelectorAll('.message.tutor .message-bubble');
-                    for (let i = bubbles.length - 1; i >= 0; i--) {
-                        const bub = bubbles[i];
-                        if (!bub.querySelector('.tutor-question')) continue;
-                        if (bub.querySelector('.u3-plain')) return false;
-                        const qdiv = bub.querySelector('.tutor-question');
-                        qdiv.insertAdjacentHTML('afterend', U3.plainSay(stageNum));
-                        return true;
-                    }
-                    return false;
-                };
-                const mo = new MutationObserver(() => { if (inject()) mo.disconnect(); });
-                mo.observe(area, { childList: true, subtree: true });
-                setTimeout(() => { try { inject(); } catch (e) { } mo.disconnect(); }, 2500);
-            } catch (e) { }
-            return r;
-        });
-
         /* --- 同一问题不重复问（原站缺陷修正）：
                原站 askQuestion 每次都追加一个新气泡，学生反复点"需要帮助"会看到同一个问题问很多遍。
                这里每次提问后打扫对话区：同一段问题文字只保留最后一条，其余隐藏。 --- */
@@ -2718,7 +2692,7 @@
    v6 三处改动：
    A. 阶段一「不会写？点这里」不再一次给全部内容——
       当前是第几问，就只显示对应的那一小块（一对一，简洁、紧扣该题）。
-   B. 老师提问下面追加一句「老师换个说法」大白话，全部用学生自己的题目来解释。
+   B. （已按要求移除）不再追加「老师换个说法」大白话。
    C. 阶段二的引导三步拆开，融进原有 6 个模块对应位置；
       「找完数据帮我检查」放在「练一遍：取数方案」紧后面，不再单独挂底。
    ========================================================================== */
@@ -2781,24 +2755,18 @@
 
     const GUIDE_BY_Q = {
         0: {
-            title: '把想法变成一句话的研究问题',
+            title: '把想法写成一句研究问题',
             body: t => {
                 const q = t.question || t.draft;
                 return `
-                <p style="margin:0 0 6px"><b>这一题只做一件事：</b>把你好奇的事，写成「X 变了，Y 会怎样？」的问句。</p>
+                <p style="margin:0 0 5px"><b>这一题只做一件事：</b>把你好奇的事，写成「X 变了，Y 会怎样？」的问句。</p>
                 ${q ? `
-                <div class="up3-note warn" style="margin:8px 0">
-                    ${topicLine(t)}。检查两下：<br>
-                    ① 里面有没有「谁→谁」的方向？（没有就补上）<br>
-                    ② 结尾能不能改成问号？（陈述句改问句就是研究问题）
-                </div>
-                <p style="margin:0"><b>套这两个句式改一改：</b>「____ 增加了，____ 会减少吗？」「____ 越高，____ 是否越高？」——把你的两个东西填进去就行。</p>`
+                <p style="margin:0 0 5px">${topicLine(t)}。检查两下：① 里面有没有「谁→谁」的方向？（没有就补上）② 结尾能不能改成问号？（陈述句改问句就是研究问题）</p>
+                <p style="margin:0 0 5px"><b>套句式改一改：</b>「____ 增加了，____ 会减少吗？」「____ 越高，____ 是否越高？」——把你的两个东西填进去就行。</p>`
                 : `
-                <p style="margin:0 0 6px">先别管术语，想想你平时刷到的让你好奇的事：</p>
-                <p style="margin:0 0 6px">「外卖涨价了，点的人会变少吗？」「城市越大，上班时间越长吗？」</p>
-                <p style="margin:0 0 6px"><b>套这两个句式改一改：</b>「____ 增加了，____ 会减少吗？」「____ 越高，____ 是否越高？」——把你好奇的两个东西填进去。</p>
-                <p style="margin:0">写好填进上面答题框就行。</p>`}
-                <div class="up3-note ok" style="margin-top:8px">过关标准：一句话、带问号、里面能看出"谁影响谁"。</div>`;
+                <p style="margin:0 0 5px">先别管术语，想想你平时刷到的让你好奇的事：「外卖涨价了，点的人会变少吗？」「城市越大，上班时间越长吗？」</p>
+                <p style="margin:0 0 5px"><b>套句式改一改：</b>「____ 增加了，____ 会减少吗？」「____ 越高，____ 是否越高？」——把两个东西填进去，写进答题框就行。</p>`}
+                <div class="up3-note ok" style="margin-top:6px">过关标准：一句话、带问号、能看出"谁影响谁"。</div>`;
             }
         },
         1: {
@@ -2806,11 +2774,9 @@
             body: t => {
                 const src = t.varY ? `你写的「${esc(t.varY)}」` : (t.question ? `你的题目「${esc(t.question)}」` : '你的题目');
                 return `
-                <p style="margin:0 0 6px"><b>Y 就是"果"：</b>你研究中最后变动、被别人影响的东西。</p>
-                <p style="margin:0 0 6px">${src}——问自己：这里头<b>等着的那个结果</b>是什么？它就是 Y。</p>
-                <p style="margin:0 0 6px"><b>这题的真正要求：</b>光写名字不行，还要说清<b>拿什么数来量它</b>：哪个指标、什么单位、哪一年到哪一年。</p>
-                <p style="margin:0">比如量"消费"用「居民人均消费支出（元/年）」，量"空气"用「PM2.5 年均浓度（微克/立方米）」。照这个格式写你的。</p>
-                <div class="up3-note ok" style="margin-top:8px">过关标准：Y = 指标名 + 单位 + 数据来源三个都写了。</div>`;
+                <p style="margin:0 0 5px"><b>Y 就是"果"：</b>你研究中最后变动、被别人影响的东西。</p>
+                <p style="margin:0 0 5px">${src}——问自己：这里头<b>等着的那个结果</b>是什么？它就是 Y。光写名字不行，还要说清<b>拿什么数来量它</b>：哪个指标、什么单位、哪一年到哪一年。比如量"消费"用「居民人均消费支出（元/年）」，量"空气"用「PM2.5 年均浓度（微克/立方米）」，照这个格式写你的。</p>
+                <div class="up3-note ok" style="margin-top:6px">过关标准：Y = 指标名 + 单位 + 数据来源三个都写了。</div>`;
             }
         },
         2: {
@@ -2818,11 +2784,10 @@
             body: t => {
                 const src = t.varX ? `你写的「${esc(t.varX)}」` : (t.question ? `你的题目「${esc(t.question)}」` : '你的题目');
                 return `
-                <p style="margin:0 0 6px"><b>X 就是"因"：</b>你怀疑是<b>它</b>在影响 Y 的那个东西。</p>
-                <p style="margin:0 0 6px">${src}——问自己：我猜是谁<b>引起</b>了那个结果？它就是 X。</p>
-                <p style="margin:0 0 6px"><b>两个坑别踩：</b>① X 和 Y 不能是同一个东西（"消费影响消费"没法研究）；② X 也要写清指标和单位，跟 Y 一样的标准。</p>
-                <p style="margin:0">写完读一遍这句话："____（X）变了，____（Y）跟着变"——通顺，就对了。</p>
-                <div class="up3-note ok" style="margin-top:8px">过关标准：X 有指标名和单位，且和 Y 不是一回事。</div>`;
+                <p style="margin:0 0 5px"><b>X 就是"因"：</b>你怀疑是<b>它</b>在影响 Y 的那个东西。</p>
+                <p style="margin:0 0 5px">${src}——问自己：我猜是谁<b>引起</b>了那个结果？它就是 X。两个坑别踩：① X 和 Y 不能是同一个东西（"消费影响消费"没法研究）；② X 也要写清指标和单位，跟 Y 一样的标准。</p>
+                <p style="margin:0 0 5px">写完读一遍："____（X）变了，____（Y）跟着变"——通顺，就对了。</p>
+                <div class="up3-note ok" style="margin-top:6px">过关标准：X 有指标名和单位，且和 Y 不是一回事。</div>`;
             }
         },
         3: {
@@ -2830,13 +2795,11 @@
             body: t => {
                 const src = t.question ? `拿你的题目「${esc(t.question)}」来说` : '拿你的题目来说';
                 return `
-                <p style="margin:0 0 6px"><b>这题在问"第三者"：</b>除了你的 X，还有什么东西也在同时影响 Y？</p>
-                <p style="margin:0 0 6px">${src}——如果不把"第三者"排掉，别人会质疑：你看到的 Y 变化，会不会其实是"第三者"干的，跟 X 没关系？</p>
-                <p style="margin:0 0 6px"><b>找法：</b>想三个"这类研究大家都会提"的：① 经济水平 ② 人口规模 ③ 产业结构/政策。跟你题目对得上就写上，再各配一句"为什么要控制它"。</p>
-                <p style="margin:0">写 2~3 个就够，每个都要说清"它为什么也会影响 Y"。</p>
-                <div class="up3-note ok" style="margin-top:8px">过关标准：每个控制变量后面都跟了一句"为什么"。</div>
-                <details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;color:var(--text-light)">交卷前 30 秒自检（点开）</summary>
-                    <div style="font-size:13px;line-height:1.8;margin-top:4px">
+                <p style="margin:0 0 5px"><b>这题在问"第三者"：</b>除了你的 X，还有什么东西也在同时影响 Y？${src}——不排掉"第三者"，别人会质疑：你看到的 Y 变化，会不会其实是"第三者"干的，跟 X 没关系？</p>
+                <p style="margin:0 0 5px"><b>找法：</b>想三个"这类研究大家都会提"的：① 经济水平 ② 人口规模 ③ 产业结构/政策。跟你题目对得上就写上，写 2~3 个就够，每个都要说清"它为什么也会影响 Y"。</p>
+                <div class="up3-note ok" style="margin-top:6px">过关标准：每个控制变量后面都跟了一句"为什么"。</div>
+                <details style="margin-top:5px"><summary style="cursor:pointer;font-size:12px;color:var(--text-light)">交卷前 30 秒自检（点开）</summary>
+                    <div style="font-size:12.5px;line-height:1.7;margin-top:3px">
                     ① 研究问题是问句吗？② Y 和 X 都有指标、单位了吗？③ X 和 Y 不是同一个东西吧？④ 控制变量带"为什么"了吗？——全"是"就可以提交了。
                     </div>
                 </details>`;
@@ -2844,12 +2807,15 @@
         }
     };
 
+    /* 精简版：不再单列"只讲这一题"横幅，标题并入正文首行，整体更紧凑 */
     U3.qGuideHTML = function (qIdx) {
         const g = GUIDE_BY_Q[qIdx] || GUIDE_BY_Q[0];
         const t = U3.studentTopic();
         return `
-        <div class="up3-note" style="margin:0 0 8px"><b>只讲这一题：</b>${esc(g.title)}</div>
-        <div style="font-size:13.5px;line-height:1.8;color:var(--text)">${g.body(t)}</div>`;
+        <div style="font-size:13px;line-height:1.65;color:var(--text)">
+            <p style="margin:0 0 5px"><b>🧭 只讲这一题：${esc(g.title)}</b></p>
+            ${g.body(t)}
+        </div>`;
     };
 
     /* ======================================================================
